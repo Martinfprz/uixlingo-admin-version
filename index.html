@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UiX-lingo | Admin Panel</title>
+    <link rel="icon" type="image/png" href="favicon.webp">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha256-jTIdiMuX/e3DGJUGwl3pKSxuc6YOuqtJYkM0bGQESA4=" crossorigin="anonymous">
+    <!-- Inicialización de tema: se ejecuta antes del render para evitar flash -->
+    <script>
+        (function () {
+            var saved = localStorage.getItem('uixlingo-theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var theme = saved || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* Transición suave al cambiar de tema */
+        *, *::before, *::after {
+            transition-property: background-color, border-color, color;
+            transition-duration: 0.25s;
+            transition-timing-function: ease;
+        }
+        .animate-spin, .animate-bounce, .animate-pulse,
+        .animate-pop, .animate-slide-up, .animate-fade-in, .animate-fade-out { transition: none !important; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha256-s4B2di9zY7yekStouOA0gmeY213ya7YfAA7C56MTe8c=" crossorigin="anonymous"></script>
+    <!-- EmailJS SDK: Necesario para envío automático -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js" integrity="sha256-JJ9ROfATluILBn++bbFzFZgfscNsZNZN8iS88Ph1Dqs=" crossorigin="anonymous"></script>
+    <script>
+        (function () {
+            // emailjs.init("TU_PUBLIC_KEY"); // PASO 1: Descomenta esto y pon tu Public Key de EmailJS
+        })();
+    </script>
+</head>
+
+<body>
+
+    <!-- ===================== LOGIN ===================== -->
+    <div id="admin-login">
+        <div class="login-wrapper">
+            <img src="logo.png" alt="UiX-lingo" class="login-logo">
+            <h2 class="login-title" id="login-main-title">Administrativos</h2>
+            <p class="login-subtitle" id="login-main-subtitle">Solo personal autorizado</p>
+
+            <input type="email" id="admin-email" placeholder="Correo electrónico" autocomplete="new-password"
+                class="login-input">
+
+            <div class="password-wrapper" id="login-password-wrapper">
+                <input type="password" id="admin-pass" placeholder="Contraseña de acceso" autocomplete="new-password"
+                    class="login-input">
+                <button type="button" id="btn-toggle-login-pass" class="toggle-pass-btn" aria-label="Mostrar u ocultar contraseña">
+                    <i class="fas fa-eye" id="login-pass-icon"></i>
+                </button>
+            </div>
+
+            <div id="forgot-password-link" style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;">
+                <a href="#" onclick="window.toggleRecoveryMode && window.toggleRecoveryMode(true, event)"
+                    style="font-size: 0.875rem; color: rgba(240,234,255,0.5); font-weight: 500; text-decoration: none; transition: color 0.2s;"
+                    onmouseover="this.style.color='#8c59fe'" onmouseout="this.style.color='rgba(240,234,255,0.5)'">No recuerdo mi
+                    contraseña</a>
+            </div>
+
+            <button type="button" id="btn-login-submit" class="btn-primary login-submit-btn login-submit-btn--invalid" aria-disabled="true">
+                Iniciar Sesión
+            </button>
+
+            <button type="button" id="btn-recover-submit" class="btn-primary login-submit-btn hidden login-submit-btn--invalid" aria-disabled="true">
+                Recuperar Contraseña
+            </button>
+
+            <div id="back-to-login-link" class="hidden" style="text-align: center; margin-top: 1rem;">
+                <a href="#" onclick="window.toggleRecoveryMode && window.toggleRecoveryMode(false, event)"
+                    style="font-size: 0.875rem; color: rgba(240,234,255,0.5); font-weight: 500; text-decoration: none; transition: color 0.2s;"
+                    onmouseover="this.style.color='#8c59fe'" onmouseout="this.style.color='rgba(240,234,255,0.5)'">Volver a
+                    iniciar sesión</a>
+            </div>
+
+            <p id="login-error" class="login-error hidden">Contraseña incorrecta</p>
+        </div>
+    </div>
+
+    <!-- ===================== ADMIN PANEL ===================== -->
+    <div id="admin-panel" class="hidden">
+
+        <header class="app-header">
+            <div class="header-brand">
+                <img src="favicon.webp" class="header-favicon" alt="">
+                <span id="admin-name-display" class="header-name">Admin Panel</span>
+            </div>
+            <div class="header-actions">
+                <button id="btn-theme-toggle" class="btn-theme-toggle" title="Cambiar tema" onclick="window.toggleTheme && window.toggleTheme()">
+                    <i id="theme-icon" class="fas fa-sun"></i>
+                </button>
+                <button type="button" onclick="window.logout && window.logout()" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </button>
+            </div>
+        </header>
+
+        <div class="panel-body">
+
+            <nav class="app-nav">
+                <button onclick="window.showTab && window.showTab('dashboard')" id="tab-dashboard" class="nav-btn active">
+                    <i class="fas fa-th-large nav-icon"></i>
+                    <span class="nav-label">Dashboard</span>
+                </button>
+                <button onclick="window.showTab && window.showTab('users')" id="tab-users" class="nav-btn">
+                    <i class="fas fa-users nav-icon"></i>
+                    <span class="nav-label">Usuarios</span>
+                </button>
+                <button onclick="window.showTab && window.showTab('rankings')" id="tab-rankings" class="nav-btn">
+                    <i class="fas fa-trophy nav-icon"></i>
+                    <span class="nav-label">Rankings</span>
+                </button>
+                <button onclick="window.showTab && window.showTab('questions')" id="tab-questions" class="nav-btn">
+                    <i class="fas fa-layer-group nav-icon"></i>
+                    <span class="nav-label">Preguntas</span>
+                </button>
+            </nav>
+
+            <main class="app-main">
+
+                <!-- ===== DASHBOARD ===== -->
+                <section id="view-dashboard" class="view-section animate-fade-in">
+                    <h2 class="view-title">Resumen General</h2>
+
+                    <div class="stats-row">
+                        <div class="admin-card stat-card">
+                            <div class="stat-icon stat-icon--purple"><i class="fas fa-users"></i></div>
+                            <div>
+                                <p class="stat-label">Participantes</p>
+                                <p class="stat-value" id="dash-total-users">-</p>
+                            </div>
+                        </div>
+                        <div class="admin-card stat-card">
+                            <div class="stat-icon stat-icon--green"><i class="fas fa-check-circle"></i></div>
+                            <div>
+                                <p class="stat-label">Promedio Aciertos</p>
+                                <p class="stat-value" id="dash-avg-score">-</p>
+                            </div>
+                        </div>
+                        <div class="admin-card stat-card">
+                            <div class="stat-icon stat-icon--yellow"><i class="fas fa-clock"></i></div>
+                            <div>
+                                <p class="stat-label">Tiempo Promedio</p>
+                                <p class="stat-value" id="dash-avg-time">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dash-grid">
+                        <!-- Columna izquierda: accesos rápidos -->
+                        <div class="dash-col">
+                            <button onclick="window.showTab && window.showTab('rankings')" class="admin-card dash-action-card">
+                                <div class="action-icon action-icon--yellow"><i class="fas fa-trophy"></i></div>
+                                <h4 class="action-card-title">Tabla de Posiciones</h4>
+                                <p class="action-card-desc">Ver ranking y usuarios</p>
+                            </button>
+                            <button onclick="window.showTab && window.showTab('questions')" class="admin-card dash-action-card">
+                                <div class="action-icon action-icon--green"><i class="fas fa-list-ul"></i></div>
+                                <h4 class="action-card-title">Ver Preguntas</h4>
+                                <p class="action-card-desc">Explorar banco de preguntas</p>
+                            </button>
+                        </div>
+
+                        <!-- Gráfica (ocupa 2 columnas) -->
+                        <div class="admin-card dash-chart-card">
+                            <h3 class="chart-title">Distribución de Seniority</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="seniorityChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Columna derecha: agregar -->
+                        <div class="dash-col">
+                            <button type="button" onclick="window.openAddUserEntryModal && window.openAddUserEntryModal()"
+                                class="admin-card dash-action-card">
+                                <div class="action-icon action-icon--purple"><i class="fas fa-user-plus"></i></div>
+                                <h4 class="action-card-title">Agregar Usuario</h4>
+                                <p class="action-card-desc">Registra un nuevo participante</p>
+                            </button>
+                            <button onclick="window.openSelectBankForNewQuestion && window.openSelectBankForNewQuestion()" class="admin-card dash-action-card">
+                                <div class="action-icon action-icon--blue"><i class="fas fa-plus-circle"></i></div>
+                                <h4 class="action-card-title">Agregar Pregunta</h4>
+                                <p class="action-card-desc">Suma contenido al banco</p>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== USUARIOS ===== -->
+                <section id="view-users" class="view-section animate-fade-in hidden">
+                    <div class="users-header">
+                        <div class="users-header-info">
+                            <h2>Usuarios Registrados</h2>
+                            <p>Gestión de calificaciones y acceso</p>
+                        </div>
+                        <div class="users-actions">
+                            <div class="view-toggle">
+                                <button onclick="window.toggleUserView && window.toggleUserView('uixers')" id="btn-view-uixers"
+                                    class="view-toggle-btn active">UiXers</button>
+                                <button onclick="window.toggleUserView && window.toggleUserView('admins')" id="btn-view-admins"
+                                    class="view-toggle-btn">Admins</button>
+                            </div>
+                            <input type="file" id="csv-upload" accept=".csv" class="hidden"
+                                onchange="window.handleCSVUpload && window.handleCSVUpload(event)">
+                            <button type="button" onclick="window.openAddUserModal && window.openAddUserModal()"
+                                class="btn-add">
+                                <i class="fas fa-plus"></i> Nuevo Usuario
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="users-stats-row">
+                        <div class="admin-card stat-card">
+                            <div class="stat-icon stat-icon--purple"><i class="fas fa-user-friends"></i></div>
+                            <div>
+                                <p class="stat-label">Total Usuarios</p>
+                                <p class="stat-value stat-value--sm" id="stat-total-users">-</p>
+                            </div>
+                        </div>
+                        <div class="admin-card stat-card">
+                            <div class="stat-icon stat-icon--yellow"><i class="fas fa-star"></i></div>
+                            <div>
+                                <p class="stat-label">Puntaje Máximo</p>
+                                <p class="stat-value stat-value--sm" id="stat-top-score">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="users-subview-toggle" class="users-subview-toggle">
+                        <button type="button" id="btn-users-subview-info" class="users-subview-btn active"
+                            onclick="window.toggleUsersSubview && window.toggleUsersSubview('info')">
+                            Información
+                        </button>
+                        <button type="button" id="btn-users-subview-talents" class="users-subview-btn"
+                            onclick="window.toggleUsersSubview && window.toggleUsersSubview('talents')">
+                            Talentos
+                        </button>
+                        <input type="file" id="csv-upload-talents" accept=".csv" class="hidden"
+                            onchange="window.handleTalentsCSVUpload && window.handleTalentsCSVUpload(event)">
+                        <button type="button" id="btn-users-dynamic-csv" class="btn-csv-upload users-dynamic-csv-btn"
+                            onclick="window.handleDynamicUsersCsvClick && window.handleDynamicUsersCsvClick()">
+                            <i class="fas fa-upload"></i> Carga Masiva Usuarios (CSV)
+                        </button>
+                        <button type="button" id="btn-download-talents-template" class="btn-csv users-template-btn hidden"
+                            onclick="window.downloadTalentsTemplate && window.downloadTalentsTemplate()">
+                            <i class="fas fa-file-download"></i> Descargar plantilla
+                        </button>
+                    </div>
+
+                    <div class="search-wrapper" id="users-search-wrapper">
+                        <div class="search-input-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" oninput="window.handleUserSearch && window.handleUserSearch(this.value)"
+                                placeholder="Buscar usuario por nombre, correo o ID..." class="search-input">
+                        </div>
+                        <button onclick="window.deleteSelectedUsers && window.deleteSelectedUsers()" id="btn-delete-users" class="btn-tertiary-danger" disabled>
+                            <i class="fas fa-trash-alt"></i> Borrar usuarios
+                        </button>
+                        <button onclick="window.downloadUsersCSV && window.downloadUsersCSV()" class="btn-csv">
+                            <i class="fas fa-file-csv"></i> Descargar base
+                        </button>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead id="users-table-head"></thead>
+                                <tbody id="users-table-body">
+                                    <tr>
+                                        <td colspan="9" class="loading-cell">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="users-talents-view" class="admin-card hidden">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr class="table-header-row">
+                                        <th>Usuario</th>
+                                        <th>Correo</th>
+                                        <th>Talento 1</th>
+                                        <th>Talento 2</th>
+                                        <th>Talento 3</th>
+                                        <th>Talento 4</th>
+                                        <th>Talento 5</th>
+                                        <th class="align-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-talents-table-body">
+                                    <tr>
+                                        <td colspan="8" class="loading-cell">Cargando talentos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== RANKINGS ===== -->
+                <section id="view-rankings" class="view-section animate-fade-in hidden">
+                    <div class="users-header">
+                        <div class="users-header-info">
+                            <h2>Rankings</h2>
+                            <p>Consulta y compara puntajes por modalidad</p>
+                        </div>
+                        <div class="view-toggle">
+                            <button type="button" id="btn-ranking-quest" class="view-toggle-btn active"
+                                onclick="window.setRankingMode && window.setRankingMode('quest')">Quest</button>
+                            <button type="button" id="btn-ranking-tests" class="view-toggle-btn"
+                                onclick="window.setRankingMode && window.setRankingMode('tests')">Tests</button>
+                            <button type="button" id="btn-ranking-pills" class="view-toggle-btn"
+                                onclick="window.setRankingMode && window.setRankingMode('pills')">Pills</button>
+                        </div>
+                    </div>
+
+                    <div id="rankings-controls" class="rankings-controls">
+                        <div class="search-wrapper">
+                            <div class="search-input-container">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="rankings-search-input"
+                                    oninput="window.handleRankingSearch && window.handleRankingSearch(this.value)"
+                                    placeholder="Buscar por nombre o correo..." class="search-input">
+                            </div>
+                        </div>
+                        <div id="rankings-pill-filter-wrap" class="rankings-pill-filter-wrap">
+                            <div id="rankings-pill-filter" class="custom-dropdown">
+                                <button type="button" id="rankings-pill-filter-trigger" class="custom-dropdown-trigger"
+                                    onclick="window.toggleRankingPillDropdown && window.toggleRankingPillDropdown()">
+                                    <span id="rankings-pill-filter-label">Todas las pills</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div id="rankings-pill-filter-menu" class="custom-dropdown-menu hidden"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr class="table-header-row">
+                                        <th class="align-center">#</th>
+                                        <th>Usuario</th>
+                                        <th>Correo</th>
+                                        <th class="align-center">Puntuación</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rankings-table-body">
+                                    <tr>
+                                        <td colspan="4" class="loading-cell">Cargando rankings...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== PREGUNTAS ===== -->
+                <section id="view-questions" class="view-section animate-fade-in hidden">
+
+                    <!-- VISTA 1: SELECCIÓN DE BANCO -->
+                    <div id="questions-bank-selection" class="animate-fade-in">
+                        <div class="questions-header">
+                            <div class="questions-header-info">
+                                <h2>Selecciona un Banco de Preguntas</h2>
+                                <p>Elige la categoría que deseas administrar</p>
+                            </div>
+                            <button type="button" onclick="window.openAddQuestionBankModal && window.openAddQuestionBankModal()" class="btn-new-bank">
+                                <i class="fas fa-plus"></i> Nuevo banco
+                            </button>
+                        </div>
+
+                        <div id="questions-bank-grid" class="dash-grid questions-bank-grid">
+                            <!-- Banks (default + custom) rendered by JS -->
+                        </div>
+                    </div>
+
+                    <!-- VISTA 2b: PILLS – lista de pills del banco -->
+                    <div id="pills-bank-content" class="hidden animate-fade-in">
+                        <div class="questions-header">
+                            <div class="questions-header-info">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <button onclick="window.goBackToBanks && window.goBackToBanks()" class="btn-cancel"
+                                        style="padding: 0.5rem; min-width: auto; border: 1px solid var(--border-color); background: var(--bg-surface-secondary); color: var(--text-color);"><i
+                                            class="fas fa-arrow-left"></i></button>
+                                    <div>
+                                        <h2>Pills</h2>
+                                        <p>Administra las cápsulas de aprendizaje y sus pruebas V/F</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="window.openAddPillModal && window.openAddPillModal()" class="btn-new-question">
+                                <i class="fas fa-plus"></i> Nueva Pill
+                            </button>
+                        </div>
+                        <div id="pills-list" class="pills-grid">
+                            <div class="loading-state">Cargando pills...</div>
+                        </div>
+                    </div>
+
+                    <!-- VISTA 2c: PILLS – preguntas V/F de una pill -->
+                    <div id="pill-questions-content" class="hidden animate-fade-in">
+                        <div class="questions-header">
+                            <div class="questions-header-info">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <button onclick="window.goBackToPills && window.goBackToPills()" class="btn-cancel"
+                                        style="padding: 0.5rem; min-width: auto; border: 1px solid var(--border-color); background: var(--bg-surface-secondary); color: var(--text-color);"><i
+                                            class="fas fa-arrow-left"></i></button>
+                                    <div>
+                                        <h2>Preguntas V/F: <span id="pill-questions-title"></span></h2>
+                                        <p>Verdadero o Falso para esta pill</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="window.openAddPillQuestionModal && window.openAddPillQuestionModal()" class="btn-new-question">
+                                <i class="fas fa-plus"></i> Nueva Pregunta V/F
+                            </button>
+                        </div>
+                        <div id="pill-questions-list">
+                            <div class="loading-state">Cargando preguntas...</div>
+                        </div>
+                    </div>
+
+                    <!-- VISTA 2: LISTA DE PREGUNTAS DEL BANCO (opción múltiple) -->
+                    <div id="questions-bank-content" class="hidden animate-fade-in">
+                        <div class="questions-header">
+                            <div class="questions-header-info">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <button onclick="window.goBackToBanks && window.goBackToBanks()" class="btn-cancel"
+                                        style="padding: 0.5rem; min-width: auto; border: 1px solid var(--border-color); background: var(--bg-surface-secondary); color: var(--text-color);"><i
+                                            class="fas fa-arrow-left"></i></button>
+                                    <div>
+                                        <h2>Banco: <span id="current-bank-name"></span></h2>
+                                        <p>Administra el contenido del quiz</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.75rem;">
+                                <input type="file" id="csv-upload-questions" accept=".csv" class="hidden"
+                                    onchange="window.handleQuestionsCSVUpload && window.handleQuestionsCSVUpload(event)">
+                                <button onclick="document.getElementById('csv-upload-questions').click()" id="btn-csv-upload-questions"
+                                    class="btn-csv-upload">
+                                    <i class="fas fa-upload"></i> Carga Masiva (CSV)
+                                </button>
+                                <button onclick="window.openQuestionModal && window.openQuestionModal()" class="btn-new-question">
+                                    <i class="fas fa-plus"></i> Nueva Pregunta
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="search-wrapper" style="display: flex; gap: 1rem;">
+                            <div class="search-input-container" style="flex: 1; position: relative;">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" oninput="handleSearch(this.value)" placeholder="Buscar pregunta..." class="search-input">
+                            </div>
+                            <button type="button" id="btn-toggle-question-filters" class="btn-filter-toggle"
+                                onclick="window.toggleQuestionFiltersPanel && window.toggleQuestionFiltersPanel()">
+                                <i class="fas fa-filter"></i> Filtros
+                            </button>
+                        </div>
+
+                        <p class="questions-filter-count">Mostrando <span id="questions-visible-count">0</span> de
+                            <span id="questions-total-count">0</span> preguntas
+                        </p>
+
+                        <div class="questions-content-layout">
+                            <div class="questions-main-content">
+                                <div id="questions-list">
+                                    <div class="loading-state">Cargando preguntas...</div>
+                                </div>
+                            </div>
+
+                            <aside id="questions-filters-panel" class="questions-filters-panel hidden">
+                                <div class="questions-filters-panel-header">
+                                    <h4>Filtrar preguntas</h4>
+                                    <button type="button" class="btn-close-filters" onclick="window.toggleQuestionFiltersPanel && window.toggleQuestionFiltersPanel()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+
+                                <div class="questions-filter-block">
+                                    <p class="questions-filter-title">Orden</p>
+                                    <select id="question-sort" onchange="window.handleQuestionSort && window.handleQuestionSort(this.value)" class="form-select">
+                                        <option value="newest">Más recientes primero</option>
+                                        <option value="category">Por Categoría</option>
+                                    </select>
+                                </div>
+
+                                <div class="questions-filter-block">
+                                    <p class="questions-filter-title">Categoría</p>
+                                    <div id="category-filters"></div>
+                                </div>
+
+                                <div class="questions-filter-block">
+                                    <p class="questions-filter-title">Seniority</p>
+                                    <div id="seniority-filters"></div>
+                                </div>
+                            </aside>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Agregar Usuario ===================== -->
+    <div id="modal-add-user" class="modal-overlay hidden">
+        <div class="modal-box modal-box--scrollable animate-fade-in">
+            <h3 class="modal-title">Agregar Nuevo Usuario</h3>
+            <p id="modal-add-user-status" class="modal-form-status modal-form-status--empty" role="status" aria-live="polite"></p>
+            <div class="form-fields">
+                <div class="form-group">
+                    <label class="form-label">Nombre Completo</label>
+                    <input type="text" id="new-user-name" placeholder="ej. Juan Pérez" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Correo Electrónico</label>
+                    <input type="email" id="new-user-email" placeholder="ej. juan@empresa.com" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Número de Empleado (ID)</label>
+                    <input type="text" id="new-user-empid" placeholder="ej. 12345" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contraseña Temporal <span
+                            style="font-size:0.8em; color:var(--text-muted);">(Autogenerada)</span></label>
+                    <input type="text" id="new-user-pass" class="form-input" readonly
+                        style="background: var(--bg-surface-tertiary);" placeholder="Ej. UiX008">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rol de Acceso</label>
+                    <select id="new-user-role" class="form-select" onchange="window.handleNewUserRoleChange && window.handleNewUserRoleChange()">
+                        <option value="user">Usuario (Participante)</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Especialidad</label>
+                    <select id="new-user-especialidad" class="form-select"></select>
+                </div>
+                <div class="form-group" id="new-user-seniority-group">
+                    <label class="form-label">Seniority</label>
+                    <div class="radio-group-inline">
+                        <label class="radio-pill"><input type="radio" name="new-user-seniority" value="junior" checked> Junior</label>
+                        <label class="radio-pill"><input type="radio" name="new-user-seniority" value="medium"> Medium</label>
+                        <label class="radio-pill"><input type="radio" name="new-user-seniority" value="senior"> Senior</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="document.getElementById('modal-add-user').classList.add('hidden'); window.clearAddUserModalStatus && window.clearAddUserModalStatus();"
+                    class="btn-cancel">Cancelar</button>
+                <button type="button" id="btn-save-new-user" class="btn-modal-save">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Editar Usuario ===================== -->
+    <div id="modal-edit-user" class="modal-overlay hidden">
+        <div class="modal-box animate-fade-in">
+            <h3 class="modal-title">Editar Usuario</h3>
+            <input type="hidden" id="edit-user-docid">
+            <input type="hidden" id="edit-user-email">
+            <div class="form-fields">
+                <div class="form-group">
+                    <label class="form-label">Nombre Completo</label>
+                    <input type="text" id="edit-user-name" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Número de Empleado (ID)</label>
+                    <input type="text" id="edit-user-empid" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rol de Acceso</label>
+                    <select id="edit-user-role" class="form-select" onchange="window.handleEditUserRoleChange && window.handleEditUserRoleChange()">
+                        <option value="user">Usuario (Participante)</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                    <p class="info-note"><i class="fas fa-info-circle"></i> Cambiar el rol moverá al usuario de lista.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Especialidad</label>
+                    <select id="edit-user-especialidad" class="form-select"></select>
+                </div>
+                <div class="form-group" id="edit-user-seniority-group">
+                    <label class="form-label">Seniority</label>
+                    <div class="radio-group-inline">
+                        <label class="radio-pill"><input type="radio" name="edit-user-seniority" value="junior"> Junior</label>
+                        <label class="radio-pill"><input type="radio" name="edit-user-seniority" value="medium"> Medium</label>
+                        <label class="radio-pill"><input type="radio" name="edit-user-seniority" value="senior"> Senior</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('modal-edit-user').classList.add('hidden')"
+                    class="btn-cancel">Cancelar</button>
+                <button onclick="window.saveEditedUser && window.saveEditedUser()" class="btn-modal-save">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Seleccionar banco para nueva pregunta ===================== -->
+    <div id="modal-select-question-bank" class="modal-overlay hidden">
+        <div class="modal-box modal-box--lg animate-fade-in">
+            <h3 class="modal-title">¿A qué banco quieres agregar la pregunta?</h3>
+            <p class="form-label" style="margin-bottom: 1rem; color: var(--text-muted);">Elige la categoría donde se guardará la nueva pregunta.</p>
+            <div id="modal-select-bank-list" class="dash-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 1rem;">
+                <!-- Populated by JS from default + custom banks -->
+            </div>
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button onclick="document.getElementById('modal-select-question-bank').classList.add('hidden')"
+                    class="btn-cancel">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-user-entry" class="modal-overlay hidden">
+        <div class="modal-box modal-box--sm animate-fade-in" style="position: relative;">
+            <button type="button"
+                onclick="window.closeAddUserEntryModal && window.closeAddUserEntryModal()"
+                aria-label="Cerrar"
+                class="modal-close-x">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="modal-title">Agregar Usuario</h3>
+            <p class="delete-modal-body">¿Cómo deseas agregar usuarios?</p>
+            <div class="modal-actions">
+                <button type="button" onclick="window.startAddUserManual && window.startAddUserManual()" class="btn-cancel">
+                    Manual
+                </button>
+                <button type="button" onclick="window.startAddUserCsv && window.startAddUserCsv()" class="btn-modal-save">
+                    Carga Masiva
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Nuevo banco de preguntas ===================== -->
+    <div id="modal-add-question-bank" class="modal-overlay hidden">
+        <div class="modal-box animate-fade-in">
+            <h3 class="modal-title">Nuevo banco de preguntas</h3>
+            <p class="form-label" style="margin-bottom: 1rem; color: var(--text-muted);">Se creará una colección en Firebase para guardar las preguntas de este banco.</p>
+            <div class="form-fields">
+                <div class="form-group">
+                    <label class="form-label">Nombre del banco</label>
+                    <input type="text" id="new-bank-name" placeholder="ej. Onboarding" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Elige un icono</label>
+                    <input type="hidden" id="new-bank-icon" value="fa-book">
+                    <div id="new-bank-icon-grid" class="icon-picker-grid" role="listbox" aria-label="Seleccionar icono">
+                        <button type="button" class="icon-picker-btn" data-icon="fa-users" title="Usuarios" aria-label="Usuarios"><i class="fas fa-users"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-clipboard-check" title="Evaluación" aria-label="Evaluación"><i class="fas fa-clipboard-check"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-capsules" title="Pills" aria-label="Pills"><i class="fas fa-capsules"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-book" title="Libro" aria-label="Libro"><i class="fas fa-book"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-layer-group" title="Capas" aria-label="Capas"><i class="fas fa-layer-group"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-graduation-cap" title="Graduación" aria-label="Graduación"><i class="fas fa-graduation-cap"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-lightbulb" title="Ideas" aria-label="Ideas"><i class="fas fa-lightbulb"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-star" title="Estrella" aria-label="Estrella"><i class="fas fa-star"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-rocket" title="Cohete" aria-label="Cohete"><i class="fas fa-rocket"></i></button>
+                        <button type="button" class="icon-picker-btn" data-icon="fa-puzzle-piece" title="Puzzle" aria-label="Puzzle"><i class="fas fa-puzzle-piece"></i></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descripción <span style="font-size:0.85em; color:var(--text-muted);">(opcional)</span></label>
+                    <input type="text" id="new-bank-description" placeholder="ej. Preguntas para onboarding" class="form-input">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('modal-add-question-bank').classList.add('hidden')" class="btn-cancel">Cancelar</button>
+                <button onclick="window.saveNewQuestionBank && window.saveNewQuestionBank()" class="btn-modal-save">Crear banco</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Agregar / Editar Pregunta (Opción múltiple) ===================== -->
+    <div id="modal-add-question" class="modal-overlay hidden">
+        <div class="modal-box modal-box--lg modal-box--scrollable animate-fade-in">
+            <h3 id="modal-question-title" class="modal-title">Agregar Pregunta</h3>
+            <input type="hidden" id="q-id">
+            <div class="form-fields">
+                <div class="form-group">
+                    <label class="form-label">Categoría</label>
+                    <select id="q-category" class="form-select" onchange="window.handleCategorySelectChange('q')"></select>
+                    <div id="q-category-custom-wrap" class="form-group hidden" style="margin-top:0.5rem">
+                        <label class="form-label" for="q-category-custom">Nombre de la nueva categoría</label>
+                        <input type="text" id="q-category-custom" class="form-input" placeholder="Ej. Branding" maxlength="80">
+                    </div>
+                </div>
+                <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label">Tag de Estudio</label>
+                        <input type="text" id="q-tag" placeholder="ej. User Interviews" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Seniority</label>
+                        <select id="q-seniority" class="form-select">
+                            <option value="junior">Junior</option>
+                            <option value="medium">Medium</option>
+                            <option value="senior">Senior</option>
+                            <option value="Product Designer">Product Designer</option>
+                            <option value="Customer Experience">Customer Experience</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pregunta</label>
+                    <textarea id="q-text" placeholder="Escribe la pregunta aquí..." rows="2"
+                        class="form-textarea"></textarea>
+                </div>
+
+                <div class="options-block">
+                    <p class="option-label-text">Opciones de Respuesta</p>
+                    <div class="option-row">
+                        <span class="option-letter">A</span>
+                        <input type="text" id="q-opt-0" placeholder="Opción A" class="form-input">
+                    </div>
+                    <div class="option-row">
+                        <span class="option-letter">B</span>
+                        <input type="text" id="q-opt-1" placeholder="Opción B" class="form-input">
+                    </div>
+                    <div class="option-row">
+                        <span class="option-letter">C</span>
+                        <input type="text" id="q-opt-2" placeholder="Opción C" class="form-input">
+                    </div>
+                </div>
+
+                <div class="correct-answer-row">
+                    <label class="correct-answer-label">Respuesta Correcta:</label>
+                    <select id="q-correct" class="form-select" style="width:auto">
+                        <option value="0">Opción A</option>
+                        <option value="1">Opción B</option>
+                        <option value="2">Opción C</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Explicación (Feedback)</label>
+                    <textarea id="q-expl" placeholder="Explica por qué es la respuesta correcta..." rows="2"
+                        class="form-textarea"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('modal-add-question').classList.add('hidden')"
+                    class="btn-cancel">Cancelar</button>
+                <button onclick="window.saveQuestion && window.saveQuestion()" class="btn-modal-save">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Agregar / Editar Pregunta V/F (Pills) ===================== -->
+    <div id="modal-add-pill-question" class="modal-overlay hidden">
+        <div class="modal-box modal-box--lg modal-box--scrollable animate-fade-in">
+            <h3 id="modal-pill-question-title" class="modal-title">Agregar Pregunta V/F</h3>
+            <input type="hidden" id="pq-id">
+            <input type="hidden" id="pq-pill-id">
+            <div class="form-fields">
+                <div class="form-group">
+                    <label class="form-label">Categoría</label>
+                    <select id="pq-category" class="form-select" onchange="window.handleCategorySelectChange('pq')"></select>
+                    <div id="pq-category-custom-wrap" class="form-group hidden" style="margin-top:0.5rem">
+                        <label class="form-label" for="pq-category-custom">Nombre de la nueva categoría</label>
+                        <input type="text" id="pq-category-custom" class="form-input" placeholder="Ej. Branding" maxlength="80">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Afirmación / Pregunta</label>
+                    <textarea id="pq-text" placeholder="Escribe la afirmación a evaluar como verdadera o falsa…" rows="3"
+                        class="form-textarea"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Respuesta Correcta</label>
+                    <div class="radio-group-inline">
+                        <label class="radio-pill radio-pill--true"><input type="radio" name="pq-answer" value="true" checked> Verdadero</label>
+                        <label class="radio-pill radio-pill--false"><input type="radio" name="pq-answer" value="false"> Falso</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Explicación (Feedback)</label>
+                    <textarea id="pq-expl" placeholder="Explica por qué es verdadero o falso…" rows="2"
+                        class="form-textarea"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="document.getElementById('modal-add-pill-question').classList.add('hidden')"
+                    class="btn-cancel">Cancelar</button>
+                <button type="button" onclick="window.savePillQuestion && window.savePillQuestion()" class="btn-modal-save">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Agregar / Editar Pill ===================== -->
+    <div id="modal-add-pill" class="modal-overlay hidden">
+        <div class="modal-box modal-box--scrollable animate-fade-in">
+            <h3 id="modal-pill-title" class="modal-title">Nueva Pill</h3>
+            <input type="hidden" id="pill-edit-id">
+            <div class="form-fields">
+                <div class="form-group">
+                    <label class="form-label">Nombre de la Pill</label>
+                    <input type="text" id="pill-name" placeholder="ej. Introducción a UX Writing" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Link a la grabación</label>
+                    <input type="url" id="pill-link" placeholder="https://..." class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoría</label>
+                    <select id="pill-category" class="form-select" onchange="window.handleCategorySelectChange('pill')"></select>
+                    <div id="pill-category-custom-wrap" class="form-group hidden" style="margin-top:0.5rem">
+                        <label class="form-label" for="pill-category-custom">Nombre de la nueva categoría</label>
+                        <input type="text" id="pill-category-custom" class="form-input" placeholder="Ej. Branding" maxlength="80">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descripción <span style="font-size:0.85em;color:var(--text-muted);">(opcional)</span></label>
+                    <input type="text" id="pill-description" placeholder="Breve descripción de esta pill" class="form-input">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="document.getElementById('modal-add-pill').classList.add('hidden')"
+                    class="btn-cancel">Cancelar</button>
+                <button type="button" onclick="window.savePill && window.savePill()" class="btn-modal-save">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Confirmar Eliminación ===================== -->
+    <div id="modal-delete-confirmation" class="modal-overlay hidden">
+        <div class="modal-box modal-box--sm animate-fade-in">
+            <div class="delete-icon-wrapper">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="delete-modal-title">¿Eliminar Pregunta?</h3>
+            <p class="delete-modal-body">Esta acción no se puede deshacer. ¿Estás seguro de que quieres eliminar esta
+                pregunta permanentemente?</p>
+            <div class="modal-actions">
+                <button onclick="window.closeDeleteModal && window.closeDeleteModal()" class="btn-cancel">Cancelar</button>
+                <button onclick="window.confirmDeleteQuestion && window.confirmDeleteQuestion()" id="btn-confirm-delete"
+                    class="btn-delete-confirm">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Confirmar Eliminación de Usuarios ===================== -->
+    <div id="modal-delete-users-confirmation" class="modal-overlay hidden">
+        <div class="modal-box modal-box--sm animate-fade-in">
+            <div class="delete-icon-wrapper">
+                <i class="fas fa-users-slash"></i>
+            </div>
+            <h3 class="delete-modal-title">¿Eliminar usuarios seleccionados?</h3>
+            <p id="delete-users-modal-body" class="delete-modal-body">Esta acción no se puede deshacer.</p>
+            <div class="modal-actions">
+                <button onclick="window.closeDeleteUsersModal && window.closeDeleteUsersModal()" class="btn-cancel">Cancelar</button>
+                <button onclick="window.confirmDeleteSelectedUsers && window.confirmDeleteSelectedUsers()" id="btn-confirm-delete-users"
+                    class="btn-delete-confirm">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Resultado importación CSV usuarios ===================== -->
+    <div id="modal-csv-import-result" class="modal-overlay hidden">
+        <div class="modal-box modal-box--scrollable animate-fade-in" style="max-width: 28rem;">
+            <h3 class="modal-title">Importación CSV de usuarios</h3>
+            <div id="csv-import-result-summary" class="csv-import-result-summary"></div>
+            <p class="csv-import-detail-label">Detalle de incidencias</p>
+            <ul id="csv-import-result-details" class="csv-import-result-details"></ul>
+            <div class="modal-actions">
+                <button type="button" onclick="window.closeCsvUserImportModal && window.closeCsvUserImportModal()" class="btn-modal-save">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-csv-conflict-strategy" class="modal-overlay hidden">
+        <div class="modal-box animate-fade-in" style="max-width: 34rem;">
+            <h3 class="modal-title">Duplicados detectados en CSV</h3>
+            <p id="csv-conflict-count-text" class="delete-modal-body">
+                Se detectaron usuarios existentes. Elige cómo procesarlos:
+            </p>
+            <div class="form-group" style="margin-top: 0.75rem;">
+                <label class="form-label">Estrategia para usuarios existentes</label>
+                <div id="csv-conflict-strategy-options" class="csv-strategy-options" role="radiogroup" aria-label="Estrategia para usuarios existentes">
+                    <button type="button" class="csv-strategy-chip" data-value="skip" role="radio" aria-checked="false">
+                        <span class="csv-strategy-chip__title">Mantener existente</span>
+                        <span class="csv-strategy-chip__desc">No cambia perfil ni contraseña. Se omite la fila duplicada.</span>
+                    </button>
+                    <button type="button" class="csv-strategy-chip" data-value="update_profile" role="radio" aria-checked="false">
+                        <span class="csv-strategy-chip__title">Actualizar solo perfil</span>
+                        <span class="csv-strategy-chip__desc">Actualiza datos en `ranking_user` sin tocar contraseña.</span>
+                    </button>
+                    <button type="button" class="csv-strategy-chip is-selected" data-value="update_and_reset_password" role="radio" aria-checked="true">
+                        <span class="csv-strategy-chip__title">Actualizar + reset temporal</span>
+                        <span class="csv-strategy-chip__desc">Actualiza perfil y asigna una nueva contraseña temporal.</span>
+                    </button>
+                    <button type="button" class="csv-strategy-chip" data-value="recreate_auth" role="radio" aria-checked="false">
+                        <span class="csv-strategy-chip__title">Recrear cuenta completa</span>
+                        <span class="csv-strategy-chip__desc">Recrea usuario en Auth y actualiza tabla. Usar solo si está corrupto.</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="btn-csv-conflict-cancel" class="btn-cancel">Cancelar</button>
+                <button type="button" id="btn-csv-conflict-confirm" class="btn-modal-save">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Cambio de Contraseña Forzoso ===================== -->
+    <div id="modal-force-change-pass" class="hidden">
+        <div class="force-pass-wrapper">
+            <div class="force-pass-icon"><i class="fas fa-key"></i></div>
+            <h2 class="force-pass-title">Cambio de Contraseña</h2>
+            <p class="force-pass-subtitle">Por seguridad, debes cambiar tu contraseña temporal antes de continuar. La nueva quedará guardada en Supabase Auth.</p>
+
+            <p id="force-pass-error" class="force-pass-error hidden" role="alert" aria-live="polite"></p>
+
+            <label class="force-pass-label" for="force-pass-current">Contraseña actual (la temporal con la que entraste)</label>
+            <input type="password" id="force-pass-current" autocomplete="current-password" placeholder="Contraseña actual"
+                class="force-pass-input">
+
+            <label class="force-pass-label" for="force-pass-1">Nueva contraseña</label>
+            <input type="password" id="force-pass-1" autocomplete="new-password" placeholder="Mínimo 6 caracteres"
+                class="force-pass-input">
+
+            <label class="force-pass-label" for="force-pass-2">Confirmar nueva contraseña</label>
+            <input type="password" id="force-pass-2" autocomplete="new-password" placeholder="Repite la nueva contraseña"
+                class="force-pass-input">
+
+            <button type="button" id="btn-force-change" class="btn-primary force-pass-btn">
+                ACTUALIZAR CONTRASEÑA
+            </button>
+        </div>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+
+</html>
