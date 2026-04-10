@@ -1598,6 +1598,27 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ── Toast notifications ──────────────────────────────────────────────────────
+function showToast(message, type = 'info', durationMs = 4000) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warn: 'fa-triangle-exclamation' };
+    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+    // trigger enter animation
+    requestAnimationFrame(() => toast.classList.add('toast--visible'));
+    setTimeout(() => {
+        toast.classList.remove('toast--visible');
+        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    }, durationMs);
+}
+
 window.loadQuestionBanks = async function () {
     const grid = document.getElementById("questions-bank-grid");
     if (!grid) return;
@@ -2049,27 +2070,58 @@ window.toggleUsersSubview = async function (mode) {
     }
 };
 
+function findTalentsTableRow(userId) {
+    const uid = String(userId || '').trim();
+    const tbody = document.getElementById('users-talents-table-body');
+    if (!tbody || !uid) return null;
+    // No usar CSS.escape en valores de data-*: rompe UUIDs que empiezan con dígito (p. ej. 73e96fcb-…)
+    return Array.from(tbody.querySelectorAll('tr[data-user-id]')).find(
+        (tr) => tr.getAttribute('data-user-id') === uid
+    ) || null;
+}
+
 window.saveUserTalents = async function (userId) {
-    const rowEl = document.querySelector(`#users-talents-table-body tr[data-user-id="${CSS.escape(String(userId))}"]`);
-    if (!rowEl) return;
+    console.log('[saveUserTalents] iniciando para userId:', userId);
+
+    const rowEl = findTalentsTableRow(userId);
+    if (!rowEl) {
+        console.error('[saveUserTalents] fila no encontrada para userId:', userId);
+        showToast('No se encontró la fila del usuario. Recarga la vista Talentos e intenta de nuevo.', 'error');
+        return;
+    }
+
     const selects = Array.from(rowEl.querySelectorAll('select.talent-select'));
-    if (selects.length !== 5) return;
+    console.log('[saveUserTalents] selects encontrados:', selects.length);
+    if (selects.length !== 5) {
+        console.error('[saveUserTalents] se esperaban 5 selects, se encontraron:', selects.length);
+        showToast(`Error interno: se esperaban 5 selectores de talento, se encontraron ${selects.length}.`, 'error');
+        return;
+    }
 
     const values = selects.map((s) => (s.value || '').trim() || null);
     const onlyValues = values.filter(Boolean);
+    console.log('[saveUserTalents] valores seleccionados:', values);
+
     const unique = new Set(onlyValues);
     if (onlyValues.length !== unique.size) {
-        alert('No puedes asignar el mismo talento más de una vez en la misma fila.');
+        showToast('No puedes asignar el mismo talento más de una vez en la misma fila.', 'warn');
         return;
     }
 
     const btn = rowEl.querySelector('.talent-save-btn');
+    const originalText = btn ? btn.textContent.trim() : 'Guardar';
     if (btn) {
         btn.disabled = true;
         btn.textContent = 'Guardando...';
     }
+
     try {
-        await invokeAdminFunction('admin-upsert-user-skills', {
+        console.log('[saveUserTalents] invocando admin-upsert-user-skills con payload:', {
+            user_id: userId, habilidad_id_1: values[0], habilidad_id_2: values[1],
+            habilidad_id_3: values[2], habilidad_id_4: values[3], habilidad_id_5: values[4],
+        });
+
+        const result = await invokeAdminFunction('admin-upsert-user-skills', {
             user_id: userId,
             habilidad_id_1: values[0],
             habilidad_id_2: values[1],
@@ -2077,6 +2129,9 @@ window.saveUserTalents = async function (userId) {
             habilidad_id_4: values[3],
             habilidad_id_5: values[4],
         });
+
+        console.log('[saveUserTalents] respuesta de la función:', result);
+
         const localRow = localTalentUsers.find((u) => String(u.user_id) === String(userId));
         if (localRow) {
             localRow.habilidad_id_1 = values[0];
@@ -2085,13 +2140,19 @@ window.saveUserTalents = async function (userId) {
             localRow.habilidad_id_4 = values[3];
             localRow.habilidad_id_5 = values[4];
         }
-        alert('Talentos guardados correctamente.');
+
+        showToast(`Talentos guardados correctamente (${onlyValues.length} asignado${onlyValues.length !== 1 ? 's' : ''}).`, 'success');
+
+        // Visual feedback in the button briefly
+        if (btn) { btn.textContent = '✓ Guardado'; }
+        setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = originalText; } }, 1500);
+
     } catch (error) {
-        alert(`Error guardando talentos: ${error.message || error}`);
-    } finally {
+        console.error('[saveUserTalents] error al guardar:', error);
+        showToast(`Error al guardar talentos: ${error.message || String(error)}`, 'error', 7000);
         if (btn) {
             btn.disabled = false;
-            btn.textContent = 'Guardar';
+            btn.textContent = originalText;
         }
     }
 };
