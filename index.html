@@ -925,16 +925,31 @@
             <p id="force-pass-error" class="force-pass-error hidden" role="alert" aria-live="polite"></p>
 
             <label class="force-pass-label" for="force-pass-current">Contraseña actual (la temporal con la que entraste)</label>
-            <input type="password" id="force-pass-current" autocomplete="current-password" placeholder="Contraseña actual"
-                class="force-pass-input">
+            <div class="force-pass-field">
+                <input type="password" id="force-pass-current" autocomplete="current-password" placeholder="Contraseña actual"
+                    class="force-pass-input">
+                <button type="button" id="btn-toggle-force-current" class="force-pass-toggle-btn" aria-label="Mostrar u ocultar contraseña">
+                    <i class="fas fa-eye" id="force-current-icon"></i>
+                </button>
+            </div>
 
             <label class="force-pass-label" for="force-pass-1">Nueva contraseña</label>
-            <input type="password" id="force-pass-1" autocomplete="new-password" placeholder="Mínimo 6 caracteres"
-                class="force-pass-input">
+            <div class="force-pass-field">
+                <input type="password" id="force-pass-1" autocomplete="new-password" placeholder="Mínimo 6 caracteres"
+                    class="force-pass-input">
+                <button type="button" id="btn-toggle-force-1" class="force-pass-toggle-btn" aria-label="Mostrar u ocultar contraseña">
+                    <i class="fas fa-eye" id="force-1-icon"></i>
+                </button>
+            </div>
 
             <label class="force-pass-label" for="force-pass-2">Confirmar nueva contraseña</label>
-            <input type="password" id="force-pass-2" autocomplete="new-password" placeholder="Repite la nueva contraseña"
-                class="force-pass-input">
+            <div class="force-pass-field">
+                <input type="password" id="force-pass-2" autocomplete="new-password" placeholder="Repite la nueva contraseña"
+                    class="force-pass-input">
+                <button type="button" id="btn-toggle-force-2" class="force-pass-toggle-btn" aria-label="Mostrar u ocultar contraseña">
+                    <i class="fas fa-eye" id="force-2-icon"></i>
+                </button>
+            </div>
 
             <button type="button" id="btn-force-change" class="btn-primary force-pass-btn">
                 ACTUALIZAR CONTRASEÑA

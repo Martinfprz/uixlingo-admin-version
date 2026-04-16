@@ -1104,6 +1104,19 @@ function initAdminDom() {
         });
     }
 
+    [
+        { btnId: 'btn-toggle-force-current', inputId: 'force-pass-current', iconId: 'force-current-icon' },
+        { btnId: 'btn-toggle-force-1',       inputId: 'force-pass-1',       iconId: 'force-1-icon' },
+        { btnId: 'btn-toggle-force-2',       inputId: 'force-pass-2',       iconId: 'force-2-icon' },
+    ].forEach(({ btnId, inputId, iconId }) => {
+        const toggleBtn = document.getElementById(btnId);
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                if (typeof window.togglePass === 'function') window.togglePass(inputId, iconId);
+            });
+        }
+    });
+
     populateAllCategorySelects();
     fillEspecialidadSelect(document.getElementById('new-user-especialidad'), '');
     fillEspecialidadSelect(document.getElementById('edit-user-especialidad'), '');
@@ -1456,7 +1469,15 @@ window.confirmForceChange = async function () {
             email: user.email,
             password: currentPass
         });
-        if (loginErr) throw loginErr;
+        if (loginErr) {
+            const lowLoginMsg = String(loginErr.message || '').toLowerCase();
+            if (lowLoginMsg.includes('invalid login credentials') || lowLoginMsg.includes('invalid_credentials')) {
+                throw new Error('La contraseña actual no es correcta. Ingresa exactamente la contraseña temporal con la que iniciaste sesión.');
+            }
+            throw loginErr;
+        }
+        if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Actualizando…';
+
         const { error: updateErr } = await supabase.auth.updateUser({
             password: p1,
             data: {
@@ -1466,23 +1487,27 @@ window.confirmForceChange = async function () {
         });
         if (updateErr) throw updateErr;
 
-        // Si existe doc admins, preservamos initial_password y limpiamos flags legacy.
+        // Firestore metadata update: no-crítico, no debe bloquear el flujo de éxito.
         if (currentAdminDocId) {
-            const adminRef = doc(db, "ranking_user", currentAdminDocId);
-            const adminSnap = await getDoc(adminRef);
-            const prev = getFirestoreDocDataIfExists(adminSnap) || {};
-            const updates = { forcePasswordChange: false };
-            const hasInitial = prev.initial_password && String(prev.initial_password).trim();
-            const hasPassword = prev.password && String(prev.password).trim();
+            try {
+                const adminRef = doc(db, "ranking_user", currentAdminDocId);
+                const adminSnap = await getDoc(adminRef);
+                const prev = getFirestoreDocDataIfExists(adminSnap) || {};
+                const updates = { forcePasswordChange: false };
+                const hasInitial = prev.initial_password && String(prev.initial_password).trim();
+                const hasPassword = prev.password && String(prev.password).trim();
 
-            if (hasInitial) {
-                updates.password = deleteField();
-            } else if (hasPassword) {
-                updates.initial_password = prev.password;
-                updates.password = deleteField();
+                if (hasInitial) {
+                    updates.password = deleteField();
+                } else if (hasPassword) {
+                    updates.initial_password = prev.password;
+                    updates.password = deleteField();
+                }
+
+                await updateDoc(adminRef, updates);
+            } catch (firestoreErr) {
+                console.warn('Firestore update after password change (non-critical):', firestoreErr);
             }
-
-            await updateDoc(adminRef, updates);
         }
 
         await supabase.auth.signOut();

@@ -2248,6 +2248,36 @@ textarea {
     box-shadow: 0 0 0 3px rgba(140, 89, 254, 0.25);
 }
 
+.force-pass-field {
+    position: relative;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.force-pass-field .force-pass-input {
+    padding-right: 3rem;
+    margin-bottom: 0;
+}
+
+.force-pass-toggle-btn {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(239, 255, 253, 0.4);
+    background: none;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.force-pass-toggle-btn:hover {
+    color: #8c59fe;
+}
+
 .force-pass-btn {
     width: 100%;
     padding: 1rem;
@@ -3310,6 +3340,14 @@ textarea {
 [data-theme="light"] .force-pass-input:focus {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px rgba(74, 34, 192, 0.12);
+}
+
+[data-theme="light"] .force-pass-toggle-btn {
+    color: rgba(13, 11, 30, 0.4);
+}
+
+[data-theme="light"] .force-pass-toggle-btn:hover {
+    color: var(--color-accent);
 }
 
 [data-theme="light"] .force-pass-error {
