@@ -81,6 +81,13 @@
 
             <p id="login-error" class="login-error hidden">Contraseña incorrecta</p>
         </div>
+
+        <footer class="site-footer site-footer--login">
+            <div class="footer-text">
+                <span class="footer-version">v2.0.0</span>
+                <p class="footer-tagline">Una iniciativa de UXquisitos | Hecho por Martín Fuentes</p>
+            </div>
+        </footer>
     </div>
 
     <!-- ===================== ADMIN PANEL ===================== -->
@@ -225,9 +232,32 @@
                         </div>
                         <div class="admin-card stat-card">
                             <div class="stat-icon stat-icon--yellow"><i class="fas fa-star"></i></div>
-                            <div>
+                            <div class="stat-card-main">
                                 <p class="stat-label">Puntaje Máximo</p>
                                 <p class="stat-value stat-value--sm" id="stat-top-score">-</p>
+                                <p class="stat-top-name" id="stat-top-score-name" hidden></p>
+                            </div>
+                        </div>
+                        <div class="admin-card stat-card stat-card--with-track hidden" id="stat-tests-card">
+                            <div class="stat-icon stat-icon--green"><i class="fas fa-clipboard-check"></i></div>
+                            <div class="stat-card-main">
+                                <p class="stat-label">Tests (máx.)</p>
+                                <div class="stat-tests-track" role="group" aria-label="Especialidad para puntaje de tests">
+                                    <button type="button" class="stat-tests-track-btn active" data-stat-test-track="ux"
+                                        aria-pressed="true" title="UX Research"
+                                        onclick="window.setUsersStatTestTrack && window.setUsersStatTestTrack('ux')">UX</button>
+                                    <button type="button" class="stat-tests-track-btn" data-stat-test-track="ui"
+                                        aria-pressed="false" title="UI Design"
+                                        onclick="window.setUsersStatTestTrack && window.setUsersStatTestTrack('ui')">UI</button>
+                                    <button type="button" class="stat-tests-track-btn" data-stat-test-track="uxui"
+                                        aria-pressed="false" title="UX/UI"
+                                        onclick="window.setUsersStatTestTrack && window.setUsersStatTestTrack('uxui')">UX/UI</button>
+                                    <button type="button" class="stat-tests-track-btn" data-stat-test-track="uxwriting"
+                                        aria-pressed="false" title="UX Writing"
+                                        onclick="window.setUsersStatTestTrack && window.setUsersStatTestTrack('uxwriting')">UX Wr.</button>
+                                </div>
+                                <p class="stat-value stat-value--sm" id="stat-top-tests-score">-</p>
+                                <p class="stat-top-name" id="stat-top-tests-name" hidden></p>
                             </div>
                         </div>
                     </div>
@@ -511,6 +541,13 @@
 
             </main>
         </div>
+
+        <footer class="site-footer site-footer--panel">
+            <div class="footer-text">
+                <span class="footer-version">v2.0.0</span>
+                <p class="footer-tagline">Una iniciativa de UXquisitos | Hecho por Martín Fuentes</p>
+            </div>
+        </footer>
     </div>
 
     <!-- ===================== MODAL: Agregar Usuario ===================== -->

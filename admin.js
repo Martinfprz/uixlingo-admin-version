@@ -1623,6 +1623,120 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function statDisplayNameForUser(u) {
+    const n = String(u.nombre || u.name || '').trim();
+    if (n) return n;
+    const email = String(u.email || '').trim();
+    if (email) return email.split('@')[0] || email;
+    return '';
+}
+
+/**
+ * Un solo nombre para las tarjetas de máximo (quest/tests). Si hay empate sin criterio extra,
+ * se muestra uno de forma estable (orden alfabético por nombre mostrado).
+ */
+function formatStatTopScoreSingleName(usersAtMax) {
+    if (!usersAtMax || usersAtMax.length === 0) return '';
+    const rows = usersAtMax
+        .map((u) => ({ u, n: statDisplayNameForUser(u) }))
+        .filter((x) => x.n);
+    if (rows.length === 0) return '';
+    rows.sort((a, b) => a.n.localeCompare(b.n, 'es', { sensitivity: 'base' }));
+    return rows[0].n;
+}
+
+function normalizeEspecialidadStr(raw) {
+    let s = String(raw ?? '').trim().toLowerCase();
+    if (!s) return '';
+    try {
+        s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    } catch (_) { /* noop */ }
+    return s.replace(/\s+/g, ' ');
+}
+
+/** Puntos de evaluación (Firestore puede usar tests_points o testsPoints). */
+function getUserTestsPoints(u) {
+    const raw = u.tests_points ?? u.testsPoints ?? u.TestsPoints;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Asigna la especialidad del usuario a un track del switch (UX Research, UI Design, UX/UI, UX Writing).
+ * Orden: variantes más específicas primero para no confundir p. ej. UX Writing con UX.
+ */
+function inferStatTestTrackFromEspecialidad(raw) {
+    const n = normalizeEspecialidadStr(raw);
+    if (!n) return null;
+    const alnum = n.replace(/[^a-z0-9]/g, '');
+    if (/\b(ux[\s_-]*writer|ux\s+writing)\b/.test(n) || n.includes('ux writing') || alnum === 'uxwriter') {
+        return 'uxwriting';
+    }
+    if (n.includes('ux/ui') || n.includes('ux-ui') || alnum === 'uxui') return 'uxui';
+    if (n.includes('ui design') || n === 'ui' || alnum === 'uidesign') return 'ui';
+    if (n.includes('ux research') || n === 'ux' || alnum === 'uxresearch') return 'ux';
+    return null;
+}
+
+const VALID_STAT_TEST_TRACK_IDS = new Set(['ux', 'ui', 'uxui', 'uxwriting']);
+
+let usersStatTestTrackId = 'ux';
+
+function userMatchesStatTestTrack(u, trackId) {
+    return inferStatTestTrackFromEspecialidad(u.especialidad ?? u.Especialidad) === trackId;
+}
+
+function updateUsersStatTestCard() {
+    const card = document.getElementById('stat-tests-card');
+    const scoreEl = document.getElementById('stat-top-tests-score');
+    const nameEl = document.getElementById('stat-top-tests-name');
+    if (!card || !scoreEl || !nameEl) return;
+
+    if (currentUserViewMode !== 'uixers') {
+        card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+
+    const filtered = localUsers.filter((u) => userMatchesStatTestTrack(u, usersStatTestTrackId));
+    let maxScore = 0;
+    for (const u of filtered) {
+        const s = getUserTestsPoints(u);
+        if (s > maxScore) maxScore = s;
+    }
+    scoreEl.textContent = maxScore;
+
+    if (maxScore > 0) {
+        const tied = filtered.filter((u) => getUserTestsPoints(u) === maxScore);
+        const namesText = formatStatTopScoreSingleName(tied);
+        if (namesText) {
+            nameEl.textContent = namesText;
+            nameEl.title = namesText;
+            nameEl.hidden = false;
+        } else {
+            nameEl.textContent = '';
+            nameEl.removeAttribute('title');
+            nameEl.hidden = true;
+        }
+    } else {
+        nameEl.textContent = '';
+        nameEl.removeAttribute('title');
+        nameEl.hidden = true;
+    }
+
+    document.querySelectorAll('[data-stat-test-track]').forEach((btn) => {
+        const id = btn.getAttribute('data-stat-test-track');
+        btn.classList.toggle('active', id === usersStatTestTrackId);
+        btn.setAttribute('aria-pressed', id === usersStatTestTrackId ? 'true' : 'false');
+    });
+}
+
+window.setUsersStatTestTrack = function (trackId) {
+    if (!VALID_STAT_TEST_TRACK_IDS.has(trackId)) return;
+    usersStatTestTrackId = trackId;
+    updateUsersStatTestCard();
+};
+
 // ── Toast notifications ──────────────────────────────────────────────────────
 function showToast(message, type = 'info', durationMs = 4000) {
     let container = document.getElementById('toast-container');
@@ -1800,7 +1914,7 @@ function setRankingModeButtons() {
 }
 
 function rankingScoreByMode(row) {
-    if (rankingMode === 'tests') return Number(row.tests_points || 0);
+    if (rankingMode === 'tests') return getUserTestsPoints(row);
     if (rankingMode === 'pills') return Number(row.pills_points || 0);
     return Number(row.quest_points || 0);
 }
@@ -2216,7 +2330,7 @@ window.loadUsers = async function () {
         const querySnapshot = await getDocs(q);
 
         localUsers = [];
-        let totalUsers = 0, maxScore = 0;
+        let totalUsers = 0;
         const rankingByEmail = new Map();
 
         querySnapshot.forEach((docSnap) => {
@@ -2251,9 +2365,6 @@ window.loadUsers = async function () {
                 const role = String(data.role || 'user').toLowerCase();
                 if (role === 'admin') return;
                 localUsers.push({ docId: data.email || docSnap.id, ...data });
-                totalUsers++;
-                const practiceBest = Number(data.quest_points ?? data.puntos ?? 0);
-                if (practiceBest > maxScore) maxScore = practiceBest;
             });
             // Evitar duplicados: si el correo es admin en Auth, no debe aparecer en UiXers.
             const authAdmins = await invokeAdminFunction('admin-list-users', { role: 'admin' });
@@ -2270,8 +2381,36 @@ window.loadUsers = async function () {
             totalUsers = localUsers.length;
         }
 
+        let maxScore = 0;
+        let topScoreNamesText = '';
+        if (currentUserViewMode === 'uixers') {
+            for (const u of localUsers) {
+                const s = Number(u.quest_points ?? u.puntos ?? 0);
+                if (s > maxScore) maxScore = s;
+            }
+            if (maxScore > 0) {
+                const tied = localUsers.filter(
+                    (u) => Number(u.quest_points ?? u.puntos ?? 0) === maxScore
+                );
+                topScoreNamesText = formatStatTopScoreSingleName(tied);
+            }
+        }
+
         document.getElementById('stat-total-users').innerText = totalUsers;
         document.getElementById('stat-top-score').innerText = maxScore;
+        const topNameEl = document.getElementById('stat-top-score-name');
+        if (topNameEl) {
+            if (topScoreNamesText) {
+                topNameEl.textContent = topScoreNamesText;
+                topNameEl.title = topScoreNamesText;
+                topNameEl.hidden = false;
+            } else {
+                topNameEl.textContent = '';
+                topNameEl.removeAttribute('title');
+                topNameEl.hidden = true;
+            }
+        }
+        updateUsersStatTestCard();
         renderUsers();
 
     } catch (error) {
@@ -2779,7 +2918,7 @@ window.renderUsers = function () {
                     <td class="td-center">${escapeHtml(String(data.seniority || '-'))}</td>
                     <td>${escapeHtml(data.especialidad || data.Especialidad || '—')}</td>
                     <td class="td-center"><span class="badge-score">${Number(data.quest_points || 0)} pts</span></td>
-                    <td class="td-center"><span class="badge-score">${Number(data.tests_points || 0)} pts</span></td>
+                    <td class="td-center"><span class="badge-score">${getUserTestsPoints(data)} pts</span></td>
                     <td class="td-center"><span class="badge-score">${Number(data.pills_points || 0)} pts</span></td>
                     <td class="td-right">
                         <button data-doc-id="${safeDocId}" onclick="window.openEditUserModal && window.openEditUserModal(this.dataset.docId)" class="row-action-btn row-action-btn--edit" title="Editar usuario"><i class="fas fa-edit"></i></button>
@@ -3041,13 +3180,13 @@ function getUserTableSortValue(u, col) {
     if (col === 'especialidad') return u.especialidad ?? u.Especialidad ?? '';
     if (col === 'emp_id') return u.emp_id ?? '';
     if (col === 'quest_points') return Number(u.quest_points ?? 0);
-    if (col === 'tests_points') return Number(u.tests_points ?? 0);
+    if (col === 'tests_points') return getUserTestsPoints(u);
     if (col === 'pills_points') return Number(u.pills_points ?? 0);
     const v = u[col];
     return v != null ? v : '';
 }
 
-const ESPECIALIDAD_OPTIONS = ['UX/UI', 'UX RESEARCH', 'UI DESIGN'];
+const ESPECIALIDAD_OPTIONS = ['UX/UI', 'UX RESEARCH', 'UI DESIGN', 'UX Writer'];
 
 /** Rellena el select de especialidad; si el valor guardado no está en la lista, añade una opción temporal. */
 function fillEspecialidadSelect(selectEl, currentValue) {

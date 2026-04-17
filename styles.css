@@ -211,6 +211,7 @@ textarea {
     align-items: center;
     justify-content: center;
     padding: 1rem;
+    padding-bottom: 4.5rem;
     overflow: hidden;
 }
 
@@ -331,6 +332,77 @@ textarea {
     font-weight: 700;
     text-align: center;
     margin-top: 1rem;
+}
+
+/* Site footer */
+.site-footer {
+    margin: 0;
+}
+
+.site-footer--login {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    padding: 0.75rem 1rem 1rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+.site-footer--login .footer-text {
+    pointer-events: auto;
+}
+
+.site-footer--panel {
+    flex-shrink: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding: 0.65rem 1rem 0.85rem;
+    text-align: center;
+    background: rgba(8, 6, 18, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.footer-text {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    text-align: center;
+}
+
+.footer-version {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(239, 255, 253, 0.38);
+}
+
+.footer-tagline {
+    margin: 0;
+    max-width: 28rem;
+    padding: 0 0.75rem;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    /* Degradado anónimo: teal → azul → violeta (visible en dark y light) */
+    background: linear-gradient(
+        90deg,
+        var(--footer-gradient-start, #2dd4bf) 0%,
+        var(--footer-gradient-mid, #60a5fa) 48%,
+        var(--footer-gradient-end, #a78bfa) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
 }
 
 /* ============================================================
@@ -529,6 +601,62 @@ textarea {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+.stat-card-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.stat-card--with-track {
+    align-items: flex-start;
+}
+
+.stat-tests-track {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.45rem;
+    padding: 0.22rem;
+    border-radius: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-tests-track-btn {
+    border: 0;
+    background: transparent;
+    color: rgba(239, 255, 253, 0.65);
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 0.45rem;
+    padding: 0.28rem 0.42rem;
+    cursor: pointer;
+    line-height: 1.2;
+    font-family: inherit;
+}
+
+.stat-tests-track-btn:hover {
+    color: rgba(239, 255, 253, 0.9);
+}
+
+.stat-tests-track-btn.active {
+    background: rgba(172, 231, 56, 0.14);
+    color: #d4f875;
+}
+
+.stat-top-name {
+    margin: 0.35rem 0 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: rgba(239, 255, 253, 0.55);
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .stat-icon {
@@ -2508,6 +2636,21 @@ textarea {
     border-bottom-color: rgba(74, 34, 192, 0.1);
 }
 
+[data-theme="light"] .site-footer--panel {
+    background: rgba(245, 247, 255, 0.88);
+    border-top-color: rgba(74, 34, 192, 0.1);
+}
+
+[data-theme="light"] .footer-version {
+    color: rgba(13, 11, 30, 0.42);
+}
+
+[data-theme="light"] .footer-tagline {
+    --footer-gradient-start: #0d9488;
+    --footer-gradient-mid: #2563eb;
+    --footer-gradient-end: #7c3aed;
+}
+
 [data-theme="light"] .header-name {
     color: var(--color-text);
 }
@@ -2784,6 +2927,28 @@ textarea {
 
 [data-theme="light"] .stat-value {
     color: var(--color-text);
+}
+
+[data-theme="light"] .stat-top-name {
+    color: var(--color-text-light);
+}
+
+[data-theme="light"] .stat-tests-track {
+    border-color: rgba(74, 34, 192, 0.12);
+    background: rgba(245, 247, 255, 0.65);
+}
+
+[data-theme="light"] .stat-tests-track-btn {
+    color: var(--color-text-light);
+}
+
+[data-theme="light"] .stat-tests-track-btn:hover {
+    color: var(--color-text);
+}
+
+[data-theme="light"] .stat-tests-track-btn.active {
+    background: rgba(61, 89, 0, 0.12);
+    color: #3d5900;
 }
 
 [data-theme="light"] .stat-icon--purple {
