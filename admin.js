@@ -1661,6 +1661,20 @@ function getUserTestsPoints(u) {
     return Number.isFinite(n) ? n : 0;
 }
 
+function getUserTestsMaxAciertos(u) {
+    const trackId = inferStatTestTrackFromEspecialidad(u.especialidad ?? u.Especialidad);
+    return trackId === 'uxui' ? 16 : 15;
+}
+
+function getUserTestsScoreDecimal(u) {
+    const aciertos = Math.max(0, getUserTestsPoints(u));
+    const maxAciertos = getUserTestsMaxAciertos(u);
+    if (!Number.isFinite(maxAciertos) || maxAciertos <= 0) return 1;
+    const safeAciertos = Math.min(aciertos, maxAciertos);
+    const score = 1 + 4 * (safeAciertos / maxAciertos);
+    return Number(score.toFixed(2));
+}
+
 /**
  * Asigna la especialidad del usuario a un track del switch (UX Research, UI Design, UX/UI, UX Writing).
  * Orden: variantes más específicas primero para no confundir p. ej. UX Writing con UX.
@@ -2320,7 +2334,7 @@ window.loadUsers = async function () {
         await loadTalentsSubview();
         return;
     }
-    const loadingColspan = currentUserViewMode === 'uixers' ? 11 : 9;
+    const loadingColspan = currentUserViewMode === 'uixers' ? 12 : 9;
     document.getElementById('users-table-body').innerHTML =
         `<tr><td colspan="${loadingColspan}" class="loading-cell"><i class="fas fa-circle-notch animate-spin"></i> Cargando...</td></tr>`;
 
@@ -2415,7 +2429,7 @@ window.loadUsers = async function () {
 
     } catch (error) {
         console.error(error);
-        const errorColspan = currentUserViewMode === 'uixers' ? 11 : 9;
+        const errorColspan = currentUserViewMode === 'uixers' ? 12 : 9;
         document.getElementById('users-table-body').innerHTML =
             `<tr><td colspan="${errorColspan}" class="error-cell">Error cargando datos: ${error.message}</td></tr>`;
     }
@@ -2854,6 +2868,7 @@ window.renderUsers = function () {
                 <th class="sortable" onclick="window.sortUsers && window.sortUsers('especialidad')">Especialidad <i id="sort-icon-especialidad" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('quest_points')">Quest <i id="sort-icon-quest_points" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('tests_points')">Tests <i id="sort-icon-tests_points" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
+                <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('tests_score_5')">Tests (1-5) <i id="sort-icon-tests_score_5" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('pills_points')">Pills <i id="sort-icon-pills_points" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="align-right">Acciones</th>
             </tr>`;
@@ -2873,7 +2888,7 @@ window.renderUsers = function () {
                 <th class="align-center">Creado</th>
                 <th class="align-right">Acciones</th>
             </tr>`;
-        if (['puntos', 'tiempo', 'quest_points', 'tests_points', 'pills_points'].includes(userSort.col)) userSort.col = 'name';
+        if (['puntos', 'tiempo', 'quest_points', 'tests_points', 'tests_score_5', 'pills_points'].includes(userSort.col)) userSort.col = 'name';
     }
 
     // Filtrar
@@ -2919,6 +2934,7 @@ window.renderUsers = function () {
                     <td>${escapeHtml(data.especialidad || data.Especialidad || '—')}</td>
                     <td class="td-center"><span class="badge-score">${Number(data.quest_points || 0)} pts</span></td>
                     <td class="td-center"><span class="badge-score">${getUserTestsPoints(data)} pts</span></td>
+                    <td class="td-center"><span class="badge-score">${getUserTestsScoreDecimal(data).toFixed(2)} pts</span></td>
                     <td class="td-center"><span class="badge-score">${Number(data.pills_points || 0)} pts</span></td>
                     <td class="td-right">
                         <button data-doc-id="${safeDocId}" onclick="window.openEditUserModal && window.openEditUserModal(this.dataset.docId)" class="row-action-btn row-action-btn--edit" title="Editar usuario"><i class="fas fa-edit"></i></button>
@@ -2945,11 +2961,11 @@ window.renderUsers = function () {
     }).join('');
 
     document.getElementById('users-table-body').innerHTML =
-        html || `<tr><td colspan="${currentUserViewMode === 'uixers' ? 11 : 9}" class="empty-cell">No se encontraron usuarios</td></tr>`;
+        html || `<tr><td colspan="${currentUserViewMode === 'uixers' ? 12 : 9}" class="empty-cell">No se encontraron usuarios</td></tr>`;
 
     // Actualizar íconos de orden
     const sortCols = currentUserViewMode === 'uixers'
-        ? ['nombre', 'email', 'password', 'emp_id', 'seniority', 'especialidad', 'quest_points', 'tests_points', 'pills_points']
+        ? ['nombre', 'email', 'password', 'emp_id', 'seniority', 'especialidad', 'quest_points', 'tests_points', 'tests_score_5', 'pills_points']
         : ['name', 'email', 'password', 'emp_id', 'especialidad'];
 
     sortCols.forEach(col => {
@@ -3181,6 +3197,7 @@ function getUserTableSortValue(u, col) {
     if (col === 'emp_id') return u.emp_id ?? '';
     if (col === 'quest_points') return Number(u.quest_points ?? 0);
     if (col === 'tests_points') return getUserTestsPoints(u);
+    if (col === 'tests_score_5') return getUserTestsScoreDecimal(u);
     if (col === 'pills_points') return Number(u.pills_points ?? 0);
     const v = u[col];
     return v != null ? v : '';
