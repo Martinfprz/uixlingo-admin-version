@@ -201,6 +201,9 @@ function _mapFirestoreLikeToSupabase(table, payload, refMeta = {}) {
         if (hasAny('category')) out.category = clean.category;
         if (hasAny('description')) out.description = clean.description;
         if (hasAny('link')) out.link = clean.link;
+        if (hasAny('seal_path', 'sealPath')) out.seal_path = firstVal('seal_path', 'sealPath');
+        if (hasAny('seal_url', 'sealUrl')) out.seal_url = firstVal('seal_url', 'sealUrl');
+        if (hasAny('seal_name', 'sealName')) out.seal_name = firstVal('seal_name', 'sealName');
         if (hasAny('published_at', 'publishedAt', 'createdAt')) {
             out.published_at = _toIsoOrNull(firstVal('published_at', 'publishedAt', 'createdAt')) || undefined;
         }
@@ -262,6 +265,9 @@ function _mapSupabaseToFirestoreLike(table, row) {
             category: row.category ?? '',
             description: row.description ?? '',
             link: row.link ?? '',
+            seal_path: row.seal_path ?? null,
+            seal_url: row.seal_url ?? null,
+            seal_name: row.seal_name ?? null,
             publishedAt: row.published_at ?? null,
             order: row.sort_order ?? null
         };
@@ -1669,9 +1675,9 @@ function getUserTestsMaxAciertos(u) {
 function getUserTestsScoreDecimal(u) {
     const aciertos = Math.max(0, getUserTestsPoints(u));
     const maxAciertos = getUserTestsMaxAciertos(u);
-    if (!Number.isFinite(maxAciertos) || maxAciertos <= 0) return 1;
+    if (!Number.isFinite(maxAciertos) || maxAciertos <= 0) return 0;
     const safeAciertos = Math.min(aciertos, maxAciertos);
-    const score = 1 + 4 * (safeAciertos / maxAciertos);
+    const score = 5 * (safeAciertos / maxAciertos);
     return Number(score.toFixed(2));
 }
 
@@ -2868,7 +2874,7 @@ window.renderUsers = function () {
                 <th class="sortable" onclick="window.sortUsers && window.sortUsers('especialidad')">Especialidad <i id="sort-icon-especialidad" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('quest_points')">Quest <i id="sort-icon-quest_points" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('tests_points')">Tests <i id="sort-icon-tests_points" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
-                <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('tests_score_5')">Tests (1-5) <i id="sort-icon-tests_score_5" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
+                <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('tests_score_5')">Tests (0-5) <i id="sort-icon-tests_score_5" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="sortable align-center" onclick="window.sortUsers && window.sortUsers('pills_points')">Pills <i id="sort-icon-pills_points" class="fas fa-sort sort-icon sort-icon--inactive"></i></th>
                 <th class="align-right">Acciones</th>
             </tr>`;
@@ -3880,10 +3886,20 @@ window.handleQuestionsCSVUpload = async function(event) {
 // ============================================================
 
 const PILLS_COLLECTION = 'pills';
+const PILLS_SEAL_BUCKET = 'sellos-pill';
+const MAX_PILL_SEAL_FILE_SIZE = 12 * 1024 * 1024;
+const PILL_SEAL_ALLOWED_MIME_TYPES = ['image/png', 'image/webp', 'image/jpeg', 'image/gif'];
+const PILL_SEAL_ALLOWED_EXTENSIONS = ['png', 'webp', 'jpg', 'jpeg', 'gif'];
 let localPills = [];
 let currentPillId = null;
 let currentPillName = '';
 let localPillQuestions = [];
+let selectedPillSealFile = null;
+let shouldRemoveCurrentPillSeal = false;
+let activePillSealPath = null;
+let activePillSealUrl = null;
+let activePillSealName = null;
+let pillSealPreviewObjectUrl = null;
 
 function isPillsBank(bankId) {
     return bankId === 'preguntas_pills';
@@ -3953,13 +3969,11 @@ function renderPills() {
     }
 
     container.innerHTML = localPills.map((pill) => {
-        const cat = pill.category || 'General';
-        const styles = categoryStyles[cat] || { badge: 'category-badge category-badge--default', cssKey: 'default' };
         const hasLink = pill.link && pill.link.trim();
+        const hasSeal = Boolean(pill.seal_url && String(pill.seal_url).trim());
         return `
-        <div class="admin-card pill-card pill-card--${styles.cssKey}">
+        <div class="admin-card pill-card">
             <div class="pill-card-header">
-                <span class="${styles.badge}">${escapeHtml(cat)}</span>
                 <div class="pill-card-actions">
                     <button type="button" onclick="window.openEditPillModal && window.openEditPillModal('${pill.id}')" class="row-action-btn row-action-btn--edit" title="Editar pill"><i class="fas fa-edit"></i></button>
                     <button type="button" onclick="window.deletePill && window.deletePill('${pill.id}')" class="row-action-btn row-action-btn--delete" title="Eliminar pill"><i class="fas fa-trash"></i></button>
@@ -3971,18 +3985,184 @@ function renderPills() {
                 ${hasLink ? `<a href="${escapeHtml(pill.link)}" target="_blank" rel="noopener" class="pill-btn pill-btn--link"><i class="fas fa-play-circle"></i> Ver Pill</a>` : '<span class="pill-btn pill-btn--disabled"><i class="fas fa-play-circle"></i> Sin enlace</span>'}
                 <button type="button" onclick="window.openPillQuestions && window.openPillQuestions('${pill.id}', '${escapeHtml((pill.name || '').replace(/'/g, "\\'"))}')" class="pill-btn pill-btn--quiz"><i class="fas fa-check-double"></i> Prueba V/F</button>
             </div>
+            ${hasSeal ? `<div class="pill-card-seal-row"><img src="${escapeHtml(String(pill.seal_url))}" alt="Sello de ${escapeHtml(pill.name || 'pill')}" class="pill-card-seal-thumb"></div>` : ''}
         </div>`;
     }).join('');
 }
+
+function sanitizePillSealFileName(fileName) {
+    const rawName = String(fileName || 'sello').trim().toLowerCase();
+    const dotIdx = rawName.lastIndexOf('.');
+    const baseRaw = dotIdx > 0 ? rawName.slice(0, dotIdx) : rawName;
+    const extRaw = dotIdx > 0 ? rawName.slice(dotIdx + 1) : 'png';
+    const safeBase = (baseRaw || 'sello')
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 80) || 'sello';
+    const safeExt = extRaw.replace(/[^a-z0-9]+/g, '').slice(0, 8) || 'png';
+    return `${safeBase}.${safeExt}`;
+}
+
+function getFileExtension(fileName) {
+    const raw = String(fileName || '').trim().toLowerCase();
+    const dotIdx = raw.lastIndexOf('.');
+    if (dotIdx < 0) return '';
+    return raw.slice(dotIdx + 1);
+}
+
+function inferImageMimeType(file) {
+    if (file?.type && PILL_SEAL_ALLOWED_MIME_TYPES.includes(file.type)) return file.type;
+    const ext = getFileExtension(file?.name);
+    if (ext === 'gif') return 'image/gif';
+    if (ext === 'png') return 'image/png';
+    if (ext === 'webp') return 'image/webp';
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    return '';
+}
+
+function clearPillSealStatus() {
+    const statusEl = document.getElementById('pill-seal-status');
+    if (!statusEl) return;
+    statusEl.textContent = '';
+    statusEl.classList.add('hidden');
+}
+
+function setPillSealStatus(message) {
+    const statusEl = document.getElementById('pill-seal-status');
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+    statusEl.classList.toggle('hidden', !message);
+}
+
+function updatePillSealPreview(url) {
+    const wrap = document.getElementById('pill-seal-preview-wrap');
+    const img = document.getElementById('pill-seal-preview');
+    if (!wrap || !img) return;
+    if (pillSealPreviewObjectUrl && pillSealPreviewObjectUrl !== url) {
+        URL.revokeObjectURL(pillSealPreviewObjectUrl);
+        pillSealPreviewObjectUrl = null;
+    }
+    if (!url) {
+        img.src = '';
+        wrap.classList.add('hidden');
+        return;
+    }
+    img.src = url;
+    wrap.classList.remove('hidden');
+}
+
+function updatePillSealFileNameLabel(name) {
+    const fileNameEl = document.getElementById('pill-seal-file-name');
+    if (!fileNameEl) return;
+    fileNameEl.textContent = name || 'Sin archivo seleccionado';
+}
+
+function resetPillSealUploaderState() {
+    selectedPillSealFile = null;
+    shouldRemoveCurrentPillSeal = false;
+    activePillSealPath = null;
+    activePillSealUrl = null;
+    activePillSealName = null;
+    const fileInput = document.getElementById('pill-seal-file');
+    if (fileInput) fileInput.value = '';
+    clearPillSealStatus();
+    updatePillSealFileNameLabel('');
+    updatePillSealPreview(null);
+}
+
+function hydratePillSealUploaderState(pill = null) {
+    resetPillSealUploaderState();
+    activePillSealPath = pill?.seal_path || null;
+    activePillSealUrl = pill?.seal_url || null;
+    activePillSealName = pill?.seal_name || null;
+    if (activePillSealUrl) updatePillSealPreview(activePillSealUrl);
+    updatePillSealFileNameLabel(activePillSealName ? `Actual: ${activePillSealName}` : '');
+}
+
+function validatePillSealFile(file) {
+    if (!file) return { ok: false, message: 'No se seleccionó archivo.' };
+    const ext = getFileExtension(file.name);
+    const hasAllowedExt = PILL_SEAL_ALLOWED_EXTENSIONS.includes(ext);
+    const hasAllowedMime = Boolean(file.type && PILL_SEAL_ALLOWED_MIME_TYPES.includes(file.type));
+    if (!hasAllowedMime && !hasAllowedExt) {
+        return { ok: false, message: 'Formato inválido. Usa PNG, WEBP, JPG o GIF.' };
+    }
+    if (file.size > MAX_PILL_SEAL_FILE_SIZE) {
+        return { ok: false, message: 'El sello supera 12MB. Optimiza la imagen e intenta nuevamente.' };
+    }
+    return { ok: true };
+}
+
+async function uploadPillSealFile(pillId, file) {
+    const cleanName = sanitizePillSealFileName(file.name);
+    const path = `pill-${pillId}/${Date.now()}-${cleanName}`;
+    const contentType = inferImageMimeType(file) || 'image/gif';
+    const { error: uploadError } = await supabase
+        .storage
+        .from(PILLS_SEAL_BUCKET)
+        .upload(path, file, { upsert: true, contentType });
+    if (uploadError) throw uploadError;
+    const { data: pubData } = supabase.storage.from(PILLS_SEAL_BUCKET).getPublicUrl(path);
+    return {
+        path,
+        url: pubData?.publicUrl || '',
+        name: file.name || cleanName
+    };
+}
+
+async function removePillSealFile(path) {
+    if (!path) return;
+    try {
+        const { error } = await supabase.storage.from(PILLS_SEAL_BUCKET).remove([path]);
+        if (error) console.warn('No se pudo eliminar sello anterior en Storage:', error.message || error);
+    } catch (err) {
+        console.warn('Error eliminando sello anterior en Storage:', err?.message || err);
+    }
+}
+
+window.handlePillSealFileChange = function (event) {
+    const file = event?.target?.files?.[0] || null;
+    clearPillSealStatus();
+    if (!file) {
+        selectedPillSealFile = null;
+        updatePillSealFileNameLabel(activePillSealName ? `Actual: ${activePillSealName}` : '');
+        updatePillSealPreview(activePillSealUrl);
+        return;
+    }
+    const validation = validatePillSealFile(file);
+    if (!validation.ok) {
+        selectedPillSealFile = null;
+        if (event?.target) event.target.value = '';
+        setPillSealStatus(validation.message);
+        updatePillSealFileNameLabel(activePillSealName ? `Actual: ${activePillSealName}` : '');
+        updatePillSealPreview(activePillSealUrl);
+        return;
+    }
+    selectedPillSealFile = file;
+    shouldRemoveCurrentPillSeal = false;
+    pillSealPreviewObjectUrl = URL.createObjectURL(file);
+    updatePillSealFileNameLabel(`Nuevo: ${file.name}`);
+    updatePillSealPreview(pillSealPreviewObjectUrl);
+};
+
+window.handlePillSealRemoveToggle = function () {
+    clearPillSealStatus();
+    selectedPillSealFile = null;
+    shouldRemoveCurrentPillSeal = true;
+    const fileInput = document.getElementById('pill-seal-file');
+    if (fileInput) fileInput.value = '';
+    updatePillSealFileNameLabel('Sello marcado para eliminar');
+    updatePillSealPreview(null);
+};
 
 window.openAddPillModal = function () {
     document.getElementById('modal-pill-title').innerText = 'Nueva Pill';
     document.getElementById('pill-edit-id').value = '';
     document.getElementById('pill-name').value = '';
     document.getElementById('pill-link').value = '';
-    fillCategorySelect(document.getElementById('pill-category'), 'UX Research');
-    document.getElementById('pill-category-custom-wrap')?.classList.add('hidden');
     document.getElementById('pill-description').value = '';
+    hydratePillSealUploaderState(null);
     document.getElementById('modal-add-pill').classList.remove('hidden');
 };
 
@@ -3993,10 +4173,8 @@ window.openEditPillModal = function (pillId) {
     document.getElementById('pill-edit-id').value = pillId;
     document.getElementById('pill-name').value = pill.name || '';
     document.getElementById('pill-link').value = pill.link || '';
-    const pcat = pill.category || 'UX Research';
-    fillCategorySelect(document.getElementById('pill-category'), pcat, [pill.category]);
-    document.getElementById('pill-category-custom-wrap')?.classList.add('hidden');
     document.getElementById('pill-description').value = pill.description || '';
+    hydratePillSealUploaderState(pill);
     document.getElementById('modal-add-pill').classList.remove('hidden');
 };
 
@@ -4004,24 +4182,55 @@ window.savePill = async function () {
     const id = document.getElementById('pill-edit-id').value;
     const name = document.getElementById('pill-name').value.trim();
     const link = document.getElementById('pill-link').value.trim();
-    const rawCat = resolveCategoryFromSelect('pill');
-    if (rawCat === null) {
-        return alert('Escribe el nombre de la nueva categoría (al menos 2 caracteres) o elige una existente.');
-    }
-    const category = normalizeQuestionCategory(rawCat);
+    const existingPill = id ? localPills.find((p) => p.id === id) : null;
+    const category = existingPill?.category || 'General';
     const description = document.getElementById('pill-description').value.trim();
 
     if (!name) return alert('El nombre de la pill es obligatorio.');
 
-    const data = { name, link, category, description, updatedAt: new Date() };
+    if (selectedPillSealFile) {
+        const validation = validatePillSealFile(selectedPillSealFile);
+        if (!validation.ok) return alert(validation.message);
+    }
+
+    const oldSealPath = activePillSealPath;
 
     try {
-        if (id) {
-            await updateDoc(doc(db, PILLS_COLLECTION, id), data);
+        let pillId = id;
+        let pathToDeleteAfterSave = null;
+
+        // Paso 1: crear o actualizar pill con datos base
+        const basePayload = { name, link, category, description };
+        if (pillId) {
+            await updateDoc(doc(db, PILLS_COLLECTION, pillId), basePayload);
         } else {
-            data.createdAt = new Date();
-            await addDoc(collection(db, PILLS_COLLECTION), data);
+            const created = await addDoc(collection(db, PILLS_COLLECTION), { ...basePayload, createdAt: new Date() });
+            pillId = created?.id;
+            if (!pillId) throw new Error('No se pudo crear la pill.');
         }
+
+        // Paso 2: manejar sello por separado (siempre con pillId ya disponible)
+        const sealPayload = {};
+        if (selectedPillSealFile) {
+            const uploaded = await uploadPillSealFile(pillId, selectedPillSealFile);
+            sealPayload.seal_path = uploaded.path;
+            sealPayload.seal_url  = uploaded.url;
+            sealPayload.seal_name = uploaded.name;
+            if (oldSealPath && oldSealPath !== uploaded.path) pathToDeleteAfterSave = oldSealPath;
+        } else if (shouldRemoveCurrentPillSeal) {
+            sealPayload.seal_path = null;
+            sealPayload.seal_url  = null;
+            sealPayload.seal_name = null;
+            if (oldSealPath) pathToDeleteAfterSave = oldSealPath;
+        }
+
+        // Solo llamar updateDoc de sello si hay algo que cambiar
+        if (Object.keys(sealPayload).length > 0) {
+            await updateDoc(doc(db, PILLS_COLLECTION, pillId), sealPayload);
+        }
+
+        await removePillSealFile(pathToDeleteAfterSave);
+        resetPillSealUploaderState();
         document.getElementById('modal-add-pill').classList.add('hidden');
         loadPills();
     } catch (e) {
@@ -4108,12 +4317,15 @@ function renderPillQuestions() {
     }).join('');
 }
 
+function getCurrentPillCategory() {
+    const currentPill = localPills.find((p) => p.id === currentPillId);
+    return normalizeQuestionCategory(currentPill?.category || "General");
+}
+
 window.openAddPillQuestionModal = function () {
     document.getElementById('modal-pill-question-title').innerText = `Nueva Pregunta V/F – ${currentPillName}`;
     document.getElementById('pq-id').value = '';
     document.getElementById('pq-pill-id').value = currentPillId;
-    fillCategorySelect(document.getElementById('pq-category'), 'UX Research');
-    document.getElementById('pq-category-custom-wrap')?.classList.add('hidden');
     document.getElementById('pq-text').value = '';
     document.getElementById('pq-expl').value = '';
     document.querySelector('input[name="pq-answer"][value="true"]').checked = true;
@@ -4126,9 +4338,6 @@ window.openEditPillQuestionModal = function (qId) {
     document.getElementById('modal-pill-question-title').innerText = 'Editar Pregunta V/F';
     document.getElementById('pq-id').value = qId;
     document.getElementById('pq-pill-id').value = currentPillId;
-    const qcat = q.category || 'UX Research';
-    fillCategorySelect(document.getElementById('pq-category'), qcat, [q.category]);
-    document.getElementById('pq-category-custom-wrap')?.classList.add('hidden');
     document.getElementById('pq-text').value = q.question || '';
     document.getElementById('pq-expl').value = q.explanation || '';
     const answerVal = (q.correctAnswer === true || q.correctAnswer === 'true') ? 'true' : 'false';
@@ -4140,11 +4349,8 @@ window.openEditPillQuestionModal = function (qId) {
 window.savePillQuestion = async function () {
     const id = document.getElementById('pq-id').value;
     const pillId = document.getElementById('pq-pill-id').value || currentPillId;
-    const rawCat = resolveCategoryFromSelect('pq');
-    if (rawCat === null) {
-        return alert('Escribe el nombre de la nueva categoría (al menos 2 caracteres) o elige una existente.');
-    }
-    const category = normalizeQuestionCategory(rawCat);
+    const existingQuestion = id ? localPillQuestions.find((x) => x.id === id) : null;
+    const category = normalizeQuestionCategory(existingQuestion?.category || getCurrentPillCategory());
     const question = document.getElementById('pq-text').value.trim();
     const explanation = document.getElementById('pq-expl').value.trim();
     const correctAnswer = document.querySelector('input[name="pq-answer"]:checked')?.value === 'true';

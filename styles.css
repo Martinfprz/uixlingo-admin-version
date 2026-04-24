@@ -255,6 +255,19 @@ textarea {
     margin-bottom: 1.5rem;
 }
 
+.login-helper-link {
+    font-size: 0.875rem;
+    color: var(--color-text-light);
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.login-helper-link:hover,
+.login-helper-link:focus-visible {
+    color: var(--color-accent);
+}
+
 .login-input {
     width: 100%;
     padding: 1rem 1.5rem;
@@ -1674,6 +1687,11 @@ textarea {
     gap: 1rem;
 }
 
+#pill-questions-list > .admin-card {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
 .question-card {
     padding: 1rem;
     border-left-width: 4px;
@@ -2458,8 +2476,26 @@ textarea {
 
 .pill-card-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
+    gap: 0.75rem;
+}
+
+.pill-card-seal-thumb {
+    width: 2.125rem;
+    height: 2.125rem;
+    border-radius: 0.65rem;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pill-card-seal-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 0.4rem;
 }
 
 .pill-card-actions {
@@ -2539,6 +2575,82 @@ textarea {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     cursor: default;
+}
+
+.pill-seal-uploader {
+    padding: 0.85rem;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.pill-seal-file-input {
+    display: none;
+}
+
+.pill-seal-uploader-actions {
+    display: flex;
+    gap: 0.55rem;
+}
+
+.pill-seal-upload-btn,
+.pill-seal-remove-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border-radius: 0.7rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pill-seal-upload-btn {
+    color: #7b9bff;
+    background: rgba(89, 122, 255, 0.1);
+    border-color: rgba(89, 122, 255, 0.35);
+}
+
+.pill-seal-upload-btn:hover {
+    background: rgba(89, 122, 255, 0.18);
+}
+
+.pill-seal-remove-btn {
+    color: #ff98a4;
+    background: rgba(255, 90, 106, 0.12);
+    border-color: rgba(255, 90, 106, 0.35);
+}
+
+.pill-seal-remove-btn:hover {
+    background: rgba(255, 90, 106, 0.2);
+}
+
+.pill-seal-file-name {
+    margin: 0.65rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    word-break: break-word;
+}
+
+.pill-seal-preview-wrap {
+    margin-top: 0.65rem;
+}
+
+.pill-seal-preview-img {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.pill-seal-status {
+    margin: 0.5rem 0 0;
+    font-size: 0.78rem;
+    color: #ff98a4;
 }
 
 /* V/F answer badge */
@@ -2871,6 +2983,11 @@ textarea {
     color: rgba(13, 11, 30, 0.55);
 }
 
+[data-theme="light"] .pill-card-seal-thumb {
+    border-color: rgba(13, 11, 30, 0.16);
+    background: rgba(13, 11, 30, 0.04);
+}
+
 [data-theme="light"] .pill-btn--link {
     color: #2136B8;
     background: rgba(33, 54, 184, 0.08);
@@ -2897,6 +3014,44 @@ textarea {
     color: rgba(13, 11, 30, 0.3);
     background: rgba(13, 11, 30, 0.04);
     border-color: rgba(13, 11, 30, 0.08);
+}
+
+[data-theme="light"] .pill-seal-uploader {
+    border-color: rgba(13, 11, 30, 0.18);
+    background: rgba(13, 11, 30, 0.02);
+}
+
+[data-theme="light"] .pill-seal-upload-btn {
+    color: #2136B8;
+    background: rgba(33, 54, 184, 0.08);
+    border-color: rgba(33, 54, 184, 0.25);
+}
+
+[data-theme="light"] .pill-seal-upload-btn:hover {
+    background: rgba(33, 54, 184, 0.14);
+}
+
+[data-theme="light"] .pill-seal-remove-btn {
+    color: #B8001A;
+    background: rgba(184, 0, 26, 0.08);
+    border-color: rgba(184, 0, 26, 0.22);
+}
+
+[data-theme="light"] .pill-seal-remove-btn:hover {
+    background: rgba(184, 0, 26, 0.14);
+}
+
+[data-theme="light"] .pill-seal-file-name {
+    color: rgba(13, 11, 30, 0.55);
+}
+
+[data-theme="light"] .pill-seal-preview-img {
+    border-color: rgba(13, 11, 30, 0.16);
+    background: rgba(13, 11, 30, 0.03);
+}
+
+[data-theme="light"] .pill-seal-status {
+    color: #B8001A;
 }
 
 [data-theme="light"] .pill-answer--true {

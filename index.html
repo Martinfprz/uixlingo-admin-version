@@ -59,9 +59,7 @@
 
             <div id="forgot-password-link" style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;">
                 <a href="#" onclick="window.toggleRecoveryMode && window.toggleRecoveryMode(true, event)"
-                    style="font-size: 0.875rem; color: rgba(240,234,255,0.5); font-weight: 500; text-decoration: none; transition: color 0.2s;"
-                    onmouseover="this.style.color='#8c59fe'" onmouseout="this.style.color='rgba(240,234,255,0.5)'">No recuerdo mi
-                    contraseña</a>
+                    class="login-helper-link">No recuerdo mi contraseña</a>
             </div>
 
             <button type="button" id="btn-login-submit" class="btn-primary login-submit-btn login-submit-btn--invalid" aria-disabled="true">
@@ -74,9 +72,7 @@
 
             <div id="back-to-login-link" class="hidden" style="text-align: center; margin-top: 1rem;">
                 <a href="#" onclick="window.toggleRecoveryMode && window.toggleRecoveryMode(false, event)"
-                    style="font-size: 0.875rem; color: rgba(240,234,255,0.5); font-weight: 500; text-decoration: none; transition: color 0.2s;"
-                    onmouseover="this.style.color='#8c59fe'" onmouseout="this.style.color='rgba(240,234,255,0.5)'">Volver a
-                    iniciar sesión</a>
+                    class="login-helper-link">Volver a iniciar sesión</a>
             </div>
 
             <p id="login-error" class="login-error hidden">Contraseña incorrecta</p>
@@ -544,7 +540,7 @@
 
         <footer class="site-footer site-footer--panel">
             <div class="footer-text">
-                <span class="footer-version">v2.0.0</span>
+                <span class="footer-version">v2.1.0</span>
                 <p class="footer-tagline">Una iniciativa de UXquisitos | Hecho por Martín Fuentes</p>
             </div>
         </footer>
@@ -804,14 +800,6 @@
             <input type="hidden" id="pq-pill-id">
             <div class="form-fields">
                 <div class="form-group">
-                    <label class="form-label">Categoría</label>
-                    <select id="pq-category" class="form-select" onchange="window.handleCategorySelectChange('pq')"></select>
-                    <div id="pq-category-custom-wrap" class="form-group hidden" style="margin-top:0.5rem">
-                        <label class="form-label" for="pq-category-custom">Nombre de la nueva categoría</label>
-                        <input type="text" id="pq-category-custom" class="form-input" placeholder="Ej. Branding" maxlength="80">
-                    </div>
-                </div>
-                <div class="form-group">
                     <label class="form-label">Afirmación / Pregunta</label>
                     <textarea id="pq-text" placeholder="Escribe la afirmación a evaluar como verdadera o falsa…" rows="3"
                         class="form-textarea"></textarea>
@@ -852,16 +840,30 @@
                     <input type="url" id="pill-link" placeholder="https://..." class="form-input">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Categoría</label>
-                    <select id="pill-category" class="form-select" onchange="window.handleCategorySelectChange('pill')"></select>
-                    <div id="pill-category-custom-wrap" class="form-group hidden" style="margin-top:0.5rem">
-                        <label class="form-label" for="pill-category-custom">Nombre de la nueva categoría</label>
-                        <input type="text" id="pill-category-custom" class="form-input" placeholder="Ej. Branding" maxlength="80">
-                    </div>
-                </div>
-                <div class="form-group">
                     <label class="form-label">Descripción <span style="font-size:0.85em;color:var(--text-muted);">(opcional)</span></label>
                     <input type="text" id="pill-description" placeholder="Breve descripción de esta pill" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sello en disputa</label>
+                    <div class="pill-seal-uploader">
+                        <input type="file" id="pill-seal-file" accept="image/png,image/webp,image/jpeg,image/gif"
+                            onchange="window.handlePillSealFileChange && window.handlePillSealFileChange(event)"
+                            class="pill-seal-file-input">
+                        <div class="pill-seal-uploader-actions">
+                            <label for="pill-seal-file" class="pill-seal-upload-btn">
+                                <i class="fas fa-upload"></i> Cargar sello
+                            </label>
+                            <button type="button" id="btn-pill-seal-remove" class="pill-seal-remove-btn"
+                                onclick="window.handlePillSealRemoveToggle && window.handlePillSealRemoveToggle()">
+                                <i class="fas fa-trash"></i> Quitar sello
+                            </button>
+                        </div>
+                        <p id="pill-seal-file-name" class="pill-seal-file-name">Sin archivo seleccionado</p>
+                        <div id="pill-seal-preview-wrap" class="pill-seal-preview-wrap hidden">
+                            <img id="pill-seal-preview" src="" alt="Vista previa del sello" class="pill-seal-preview-img">
+                        </div>
+                        <p id="pill-seal-status" class="pill-seal-status hidden"></p>
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
