@@ -204,6 +204,11 @@ function _mapFirestoreLikeToSupabase(table, payload, refMeta = {}) {
         if (hasAny('seal_path', 'sealPath')) out.seal_path = firstVal('seal_path', 'sealPath');
         if (hasAny('seal_url', 'sealUrl')) out.seal_url = firstVal('seal_url', 'sealUrl');
         if (hasAny('seal_name', 'sealName')) out.seal_name = firstVal('seal_name', 'sealName');
+        if (hasAny('has_quiz', 'hasQuiz')) out.has_quiz = Boolean(firstVal('has_quiz', 'hasQuiz'));
+        if (hasAny('quarter')) {
+            const q = firstVal('quarter');
+            out.quarter = (q && ['Q1','Q2','Q3','Q4'].includes(q)) ? q : null;
+        }
         if (hasAny('published_at', 'publishedAt', 'createdAt')) {
             out.published_at = _toIsoOrNull(firstVal('published_at', 'publishedAt', 'createdAt')) || undefined;
         }
@@ -268,6 +273,9 @@ function _mapSupabaseToFirestoreLike(table, row) {
             seal_path: row.seal_path ?? null,
             seal_url: row.seal_url ?? null,
             seal_name: row.seal_name ?? null,
+            // has_quiz defaults to true for backward compat (existing pills with questions)
+            has_quiz: row.has_quiz !== false,
+            quarter: row.quarter ?? null,
             publishedAt: row.published_at ?? null,
             order: row.sort_order ?? null
         };
@@ -652,6 +660,8 @@ window.closeCsvUserImportModal = function () {
 
 let localQuestions = [];
 let questionToDeleteId = null;
+/** @type {null | (() => void | Promise<void>)} */
+let destructiveConfirmHandler = null;
 let activeFilters = new Set();
 let activeSeniorityFilters = new Set();
 let searchTerm = "";
@@ -3768,6 +3778,54 @@ window.confirmDeleteQuestion = async function () {
     }
 };
 
+/**
+ * Modal de advertencia para cualquier acción destructiva (mismo patrón visual que borrar pregunta).
+ * @param {{ title: string, body: string, onConfirm: () => void | Promise<void>, confirmLabel?: string }} opts
+ */
+window.openDestructiveConfirmModal = function (opts) {
+    const { title, body, onConfirm, confirmLabel } = opts || {};
+    if (!onConfirm || typeof onConfirm !== 'function') return;
+    const titleEl = document.getElementById('destructive-confirm-title');
+    const bodyEl = document.getElementById('destructive-confirm-body');
+    const btn = document.getElementById('btn-confirm-destructive');
+    if (titleEl) titleEl.textContent = title || '¿Confirmar acción?';
+    if (bodyEl) bodyEl.textContent = body || 'Esta acción no se puede deshacer.';
+    if (btn) btn.textContent = confirmLabel || 'Eliminar';
+    destructiveConfirmHandler = onConfirm;
+    document.getElementById('modal-destructive-confirmation')?.classList.remove('hidden');
+};
+
+window.closeDestructiveConfirmModal = function () {
+    document.getElementById('modal-destructive-confirmation')?.classList.add('hidden');
+    destructiveConfirmHandler = null;
+    const btn = document.getElementById('btn-confirm-destructive');
+    if (btn) btn.textContent = 'Eliminar';
+};
+
+window.confirmDestructiveAction = async function () {
+    if (!destructiveConfirmHandler) return;
+    const btn = document.getElementById('btn-confirm-destructive');
+    const handler = destructiveConfirmHandler;
+    const originalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i>';
+        btn.disabled = true;
+    }
+    try {
+        await handler();
+        destructiveConfirmHandler = null;
+        closeDestructiveConfirmModal();
+    } catch (e) {
+        alert(typeof e?.message === 'string' ? e.message : String(e));
+        destructiveConfirmHandler = handler;
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    }
+};
+
 // --- Carga masiva de preguntas (CSV) ---
 window.handleQuestionsCSVUpload = async function(event) {
     const file = event.target.files[0];
@@ -3971,9 +4029,22 @@ function renderPills() {
     container.innerHTML = localPills.map((pill) => {
         const hasLink = pill.link && pill.link.trim();
         const hasSeal = Boolean(pill.seal_url && String(pill.seal_url).trim());
+        const hasQuiz = pill.has_quiz !== false;
+        const safeName = escapeHtml((pill.name || '').replace(/'/g, "\\'"));
+        const quizBtn = hasQuiz
+            ? `<button type="button" onclick="window.openPillQuestions && window.openPillQuestions('${pill.id}', '${safeName}')" class="pill-btn pill-btn--quiz"><i class="fas fa-check-double"></i> Prueba V/F</button>`
+            : '';
+        const assignBadgeBtn = `<button type="button" onclick="window.openPillBadgeAssignment && window.openPillBadgeAssignment('${pill.id}', '${safeName}')" class="pill-btn pill-btn--assign-badge"><i class="fas fa-medal"></i> Asignar ganadores</button>`;
+        const quizBadgeTag = hasQuiz
+            ? `<span class="pill-type-tag pill-type-tag--quiz"><i class="fas fa-check-double"></i> Con prueba V/F</span>`
+            : `<span class="pill-type-tag pill-type-tag--badge"><i class="fas fa-medal"></i> Solo sello</span>`;
+        const quarterTag = pill.quarter
+            ? `<span class="pill-type-tag pill-type-tag--quarter">${escapeHtml(pill.quarter)}</span>`
+            : '';
         return `
         <div class="admin-card pill-card">
             <div class="pill-card-header">
+                <div class="pill-card-tags">${quizBadgeTag}${quarterTag}</div>
                 <div class="pill-card-actions">
                     <button type="button" onclick="window.openEditPillModal && window.openEditPillModal('${pill.id}')" class="row-action-btn row-action-btn--edit" title="Editar pill"><i class="fas fa-edit"></i></button>
                     <button type="button" onclick="window.deletePill && window.deletePill('${pill.id}')" class="row-action-btn row-action-btn--delete" title="Eliminar pill"><i class="fas fa-trash"></i></button>
@@ -3983,7 +4054,8 @@ function renderPills() {
             ${pill.description ? `<p class="pill-card-desc">${escapeHtml(pill.description)}</p>` : ''}
             <div class="pill-card-buttons">
                 ${hasLink ? `<a href="${escapeHtml(pill.link)}" target="_blank" rel="noopener" class="pill-btn pill-btn--link"><i class="fas fa-play-circle"></i> Ver Pill</a>` : '<span class="pill-btn pill-btn--disabled"><i class="fas fa-play-circle"></i> Sin enlace</span>'}
-                <button type="button" onclick="window.openPillQuestions && window.openPillQuestions('${pill.id}', '${escapeHtml((pill.name || '').replace(/'/g, "\\'"))}')" class="pill-btn pill-btn--quiz"><i class="fas fa-check-double"></i> Prueba V/F</button>
+                ${quizBtn}
+                ${assignBadgeBtn}
             </div>
             ${hasSeal ? `<div class="pill-card-seal-row"><img src="${escapeHtml(String(pill.seal_url))}" alt="Sello de ${escapeHtml(pill.name || 'pill')}" class="pill-card-seal-thumb"></div>` : ''}
         </div>`;
@@ -4147,13 +4219,21 @@ window.handlePillSealFileChange = function (event) {
 };
 
 window.handlePillSealRemoveToggle = function () {
-    clearPillSealStatus();
-    selectedPillSealFile = null;
-    shouldRemoveCurrentPillSeal = true;
-    const fileInput = document.getElementById('pill-seal-file');
-    if (fileInput) fileInput.value = '';
-    updatePillSealFileNameLabel('Sello marcado para eliminar');
-    updatePillSealPreview(null);
+    if (!activePillSealUrl && !selectedPillSealFile) return;
+    window.openDestructiveConfirmModal({
+        title: '¿Quitar sello?',
+        body: 'El sello dejará de mostrarse en esta pill al guardar los cambios.',
+        confirmLabel: 'Quitar sello',
+        onConfirm: async () => {
+            clearPillSealStatus();
+            selectedPillSealFile = null;
+            shouldRemoveCurrentPillSeal = true;
+            const fileInput = document.getElementById('pill-seal-file');
+            if (fileInput) fileInput.value = '';
+            updatePillSealFileNameLabel('Sello marcado para eliminar');
+            updatePillSealPreview(null);
+        }
+    });
 };
 
 window.openAddPillModal = function () {
@@ -4162,6 +4242,10 @@ window.openAddPillModal = function () {
     document.getElementById('pill-name').value = '';
     document.getElementById('pill-link').value = '';
     document.getElementById('pill-description').value = '';
+    const quarterEl = document.getElementById('pill-quarter');
+    if (quarterEl) quarterEl.value = '';
+    const toggle = document.getElementById('pill-has-quiz');
+    if (toggle) toggle.checked = true;
     hydratePillSealUploaderState(null);
     document.getElementById('modal-add-pill').classList.remove('hidden');
 };
@@ -4174,6 +4258,10 @@ window.openEditPillModal = function (pillId) {
     document.getElementById('pill-name').value = pill.name || '';
     document.getElementById('pill-link').value = pill.link || '';
     document.getElementById('pill-description').value = pill.description || '';
+    const quarterEl = document.getElementById('pill-quarter');
+    if (quarterEl) quarterEl.value = pill.quarter || '';
+    const toggle = document.getElementById('pill-has-quiz');
+    if (toggle) toggle.checked = pill.has_quiz !== false;
     hydratePillSealUploaderState(pill);
     document.getElementById('modal-add-pill').classList.remove('hidden');
 };
@@ -4185,6 +4273,9 @@ window.savePill = async function () {
     const existingPill = id ? localPills.find((p) => p.id === id) : null;
     const category = existingPill?.category || 'General';
     const description = document.getElementById('pill-description').value.trim();
+    const hasQuiz = document.getElementById('pill-has-quiz')?.checked !== false;
+    const quarterRaw = document.getElementById('pill-quarter')?.value || '';
+    const quarter = ['Q1','Q2','Q3','Q4'].includes(quarterRaw) ? quarterRaw : null;
 
     if (!name) return alert('El nombre de la pill es obligatorio.');
 
@@ -4199,14 +4290,34 @@ window.savePill = async function () {
         let pillId = id;
         let pathToDeleteAfterSave = null;
 
-        // Paso 1: crear o actualizar pill con datos base
-        const basePayload = { name, link, category, description };
-        if (pillId) {
-            await updateDoc(doc(db, PILLS_COLLECTION, pillId), basePayload);
-        } else {
-            const created = await addDoc(collection(db, PILLS_COLLECTION), { ...basePayload, createdAt: new Date() });
-            pillId = created?.id;
-            if (!pillId) throw new Error('No se pudo crear la pill.');
+        // Paso 1: crear o actualizar pill con datos base (incluye has_quiz/quarter si existen en BD)
+        const basePayload = { name, link, category, description, has_quiz: hasQuiz, quarter };
+        const basePayloadWithoutQuiz = { name, link, category, description, quarter };
+
+        async function persistPillBase(includeHasQuiz) {
+            const payload = includeHasQuiz ? basePayload : basePayloadWithoutQuiz;
+            if (pillId) {
+                await updateDoc(doc(db, PILLS_COLLECTION, pillId), payload);
+            } else {
+                const created = await addDoc(collection(db, PILLS_COLLECTION), { ...payload, createdAt: new Date() });
+                pillId = created?.id;
+                if (!pillId) throw new Error('No se pudo crear la pill.');
+            }
+        }
+
+        try {
+            await persistPillBase(true);
+        } catch (firstErr) {
+            const code = firstErr?.code;
+            const msg = String(firstErr?.message || '');
+            const missingColumn = code === 'PGRST204' || msg.includes('has_quiz') || msg.includes('quarter');
+            if (!missingColumn) throw firstErr;
+            showToast(
+                'Pill guardada correctamente. Faltan columnas en la base de datos: ejecuta sql/add-has-quiz-to-pills.sql y sql/add-quarter-to-pills.sql en Supabase → SQL Editor, luego recarga.',
+                'info',
+                14000
+            );
+            await persistPillBase(false);
         }
 
         // Paso 2: manejar sello por separado (siempre con pillId ya disponible)
@@ -4239,18 +4350,372 @@ window.savePill = async function () {
     }
 };
 
-window.deletePill = async function (pillId) {
-    if (!confirm('¿Eliminar esta pill y todas sus preguntas? Esta acción no se puede deshacer.')) return;
-    try {
-        const qSnap = await getDocs(collection(db, PILLS_COLLECTION, pillId, 'questions'));
-        const deletePromises = [];
-        qSnap.forEach((d) => deletePromises.push(deleteDoc(d.ref)));
-        await Promise.all(deletePromises);
-        await deleteDoc(doc(db, PILLS_COLLECTION, pillId));
-        loadPills();
-    } catch (e) {
-        alert('Error al eliminar: ' + e.message);
+// ============================================================
+//  BADGE ASSIGNMENT (asignar ganadores de sello)
+// ============================================================
+
+const ADMIN_PILL_BADGES_FN = 'admin-pill-badges';
+
+let currentBadgePillId = null;
+let currentBadgePillName = '';
+let localBadgeUsers = [];
+let localBadgeHolderIds = new Set();
+let pillBadgeManualSearchTerm = '';
+let pillBadgeCsvFile = null;
+let pillBadgeCsvPreviewRows = [];
+
+/**
+ * Trae usuarios con su UUID real de Supabase Auth (user_id = auth.users.id).
+ * ranking_user.id es un UUID propio de esa tabla y NO coincide con auth.uid(),
+ * por eso se usa la Edge Function admin-list-uixers que ya hace el JOIN correcto.
+ */
+async function _fetchUsersForBadges() {
+    const res = await invokeAdminFunction('admin-list-uixers', {});
+    const users = Array.isArray(res.users) ? res.users : [];
+    return users
+        .filter((u) => u.email && u.user_id)
+        .map((u) => ({ id: u.user_id, email: u.email, nombre: u.nombre || u.email }))
+        .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
+}
+
+async function _fetchBadgeHolders(pillId) {
+    const { data, error } = await supabase
+        .from('user_pill_badges')
+        .select('user_id')
+        .eq('pill_id', pillId);
+    if (error) throw error;
+    return new Set((data || []).map((r) => r.user_id));
+}
+
+function _renderBadgeManualList() {
+    const container = document.getElementById('badge-user-list');
+    if (!container) return;
+    const term = pillBadgeManualSearchTerm.toLowerCase();
+    const filtered = term
+        ? localBadgeUsers.filter((u) =>
+            (u.nombre || '').toLowerCase().includes(term) ||
+            (u.email || '').toLowerCase().includes(term)
+          )
+        : localBadgeUsers;
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay usuarios que coincidan.</div>';
+        return;
     }
+
+    container.innerHTML = filtered.map((u) => {
+        const hasIt = localBadgeHolderIds.has(u.id);
+        const safeId = escapeHtml(String(u.id));
+        return `
+        <label class="badge-user-row${hasIt ? ' badge-user-row--has' : ''}" for="badge-chk-${safeId}">
+            <input type="checkbox" id="badge-chk-${safeId}"
+                class="badge-user-checkbox checkbox-accent"
+                data-user-id="${safeId}"
+                ${hasIt ? 'checked' : ''}>
+            <div class="badge-user-info">
+                <span class="badge-user-name">${escapeHtml(u.nombre || u.email || 'Sin nombre')}</span>
+                <span class="badge-user-email">${escapeHtml(u.email || '')}</span>
+            </div>
+            ${hasIt ? '<span class="badge-winner-indicator" title="Ya tiene el sello"><i class="fas fa-medal"></i></span>' : ''}
+        </label>`;
+    }).join('');
+
+    const countEl = document.getElementById('badge-holder-count');
+    if (countEl) {
+        const n = localBadgeHolderIds.size;
+        countEl.textContent = n > 0
+            ? `${n} usuario${n !== 1 ? 's' : ''} con este sello`
+            : 'Ningún usuario tiene este sello aún';
+    }
+}
+
+window.openPillBadgeAssignment = async function (pillId, pillName) {
+    currentBadgePillId = pillId;
+    currentBadgePillName = pillName;
+    pillBadgeManualSearchTerm = '';
+    pillBadgeCsvFile = null;
+    pillBadgeCsvPreviewRows = [];
+
+    const nameEl = document.getElementById('badge-assign-pill-name');
+    if (nameEl) nameEl.textContent = pillName || '—';
+
+    const searchEl = document.getElementById('badge-manual-search');
+    if (searchEl) searchEl.value = '';
+
+    const csvPreview = document.getElementById('badge-csv-preview');
+    if (csvPreview) { csvPreview.classList.add('hidden'); csvPreview.innerHTML = ''; }
+    const csvFile = document.getElementById('badge-csv-file');
+    if (csvFile) csvFile.value = '';
+    const csvFilename = document.getElementById('badge-csv-filename');
+    if (csvFilename) csvFilename.textContent = 'Sin archivo';
+    const importBtn = document.getElementById('btn-import-badge-csv');
+    if (importBtn) importBtn.disabled = true;
+
+    window.switchPillBadgeTab('manual');
+    document.getElementById('modal-pill-badge-assignment').classList.remove('hidden');
+
+    const listEl = document.getElementById('badge-user-list');
+    if (listEl) listEl.innerHTML = '<div class="loading-state"><i class="fas fa-circle-notch animate-spin"></i> Cargando usuarios…</div>';
+
+    try {
+        [localBadgeUsers, localBadgeHolderIds] = await Promise.all([
+            _fetchUsersForBadges(),
+            _fetchBadgeHolders(pillId)
+        ]);
+        _renderBadgeManualList();
+    } catch (e) {
+        const msg = e?.message || String(e);
+        if (listEl) {
+            listEl.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-circle"></i> ${escapeHtml(msg)}</div>`;
+        }
+        showToast(`No se pudo cargar usuarios: ${msg}`, 'error', 10000);
+    }
+};
+
+window.closePillBadgeAssignmentModal = function () {
+    document.getElementById('modal-pill-badge-assignment')?.classList.add('hidden');
+    currentBadgePillId = null;
+    currentBadgePillName = '';
+    localBadgeUsers = [];
+    localBadgeHolderIds = new Set();
+    pillBadgeCsvFile = null;
+    pillBadgeCsvPreviewRows = [];
+};
+
+window.switchPillBadgeTab = function (tab) {
+    document.querySelectorAll('.badge-tab-btn').forEach((btn) => {
+        const isActive = btn.dataset.tab === tab;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    document.getElementById('badge-tab-manual')?.classList.toggle('hidden', tab !== 'manual');
+    document.getElementById('badge-tab-csv')?.classList.toggle('hidden', tab !== 'csv');
+};
+
+window.pillBadgeFilterUsers = function (val) {
+    pillBadgeManualSearchTerm = (val || '').trim();
+    _renderBadgeManualList();
+};
+
+window.savePillBadgeManual = async function () {
+    if (!currentBadgePillId) return;
+
+    const checkboxes = document.querySelectorAll('.badge-user-checkbox');
+    const checkedIds = new Set();
+    checkboxes.forEach((cb) => { if (cb.checked) checkedIds.add(cb.dataset.userId); });
+
+    const toAdd = [...checkedIds].filter((id) => !localBadgeHolderIds.has(id));
+    const toRemove = [...localBadgeHolderIds].filter((id) => !checkedIds.has(id));
+
+    if (toAdd.length === 0 && toRemove.length === 0) {
+        showToast('No hay cambios para guardar.', 'info', 5000);
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-badge-manual');
+    const originalHTML = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i>'; btn.disabled = true; }
+
+    showToast('Guardando asignaciones…', 'info', 2000);
+    try {
+        if (toAdd.length > 0) {
+            const rows = toAdd.map((userId) => ({
+                pill_id: currentBadgePillId,
+                user_id: userId,
+                score: null,
+                errors: null
+            }));
+            const { error } = await supabase
+                .from('user_pill_badges')
+                .upsert(rows, { onConflict: 'user_id,pill_id' });
+            if (error) throw error;
+        }
+        if (toRemove.length > 0) {
+            const { error } = await supabase
+                .from('user_pill_badges')
+                .delete()
+                .eq('pill_id', currentBadgePillId)
+                .in('user_id', toRemove);
+            if (error) throw error;
+        }
+        localBadgeHolderIds = await _fetchBadgeHolders(currentBadgePillId);
+        _renderBadgeManualList();
+        showToast(
+            `Listo: ${toAdd.length} asignado${toAdd.length !== 1 ? 's' : ''}${toRemove.length > 0 ? `, ${toRemove.length} removido${toRemove.length !== 1 ? 's' : ''}` : ''}.`,
+            'success',
+            6000
+        );
+    } catch (e) {
+        const msg = e?.message || String(e);
+        showToast(`Error al guardar: ${msg}`, 'error', 10000);
+        console.error(e);
+    } finally {
+        if (btn) { btn.innerHTML = originalHTML; btn.disabled = false; }
+    }
+};
+
+window.handleBadgeCsvChange = function (event) {
+    const file = event?.target?.files?.[0] || null;
+    pillBadgeCsvFile = file;
+    pillBadgeCsvPreviewRows = [];
+
+    const filenameEl = document.getElementById('badge-csv-filename');
+    const previewEl = document.getElementById('badge-csv-preview');
+    const importBtn = document.getElementById('btn-import-badge-csv');
+
+    if (filenameEl) filenameEl.textContent = file ? file.name : 'Sin archivo';
+    if (!previewEl || !importBtn) return;
+
+    if (!file) {
+        previewEl.classList.add('hidden');
+        previewEl.innerHTML = '';
+        importBtn.disabled = true;
+        return;
+    }
+
+    previewEl.classList.remove('hidden');
+    previewEl.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem"><i class="fas fa-circle-notch animate-spin"></i> Procesando…</p>';
+    importBtn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        let text;
+        try { text = new TextDecoder('utf-8', { fatal: true }).decode(e.target.result); }
+        catch (_) { text = new TextDecoder('windows-1252').decode(e.target.result); }
+
+        const rows = splitCsvRecords(text).map((r) => r.trim()).filter(Boolean);
+        if (rows.length < 2) {
+            previewEl.innerHTML = '<p class="badge-csv-error"><i class="fas fa-exclamation-triangle"></i> El CSV debe tener encabezado y al menos un correo.</p>';
+            return;
+        }
+
+        const headers = parseCsvRowCells(rows[0]).map((h) =>
+            h.replace(/^["']|["']$/g, '').trim().toLowerCase()
+        );
+        const emailIdx = headers.findIndex((h) => h.includes('email') || h.includes('correo'));
+        if (emailIdx < 0) {
+            previewEl.innerHTML = '<p class="badge-csv-error"><i class="fas fa-exclamation-triangle"></i> No se encontró columna <code>email</code> o <code>correo</code>.</p>';
+            return;
+        }
+
+        const emails = rows.slice(1).map((row) => {
+            const cols = parseCsvRowCells(row);
+            return (cols[emailIdx] || '').replace(/^["']|["']$/g, '').trim().toLowerCase();
+        }).filter(Boolean);
+
+        const userByEmail = new Map(localBadgeUsers.map((u) => [
+            String(u.email || '').trim().toLowerCase(), u
+        ]));
+
+        pillBadgeCsvPreviewRows = emails.map((email) => {
+            const user = userByEmail.get(email);
+            return {
+                email,
+                userId: user?.id || null,
+                found: Boolean(user),
+                alreadyHas: user ? localBadgeHolderIds.has(user.id) : false
+            };
+        });
+
+        const found    = pillBadgeCsvPreviewRows.filter((r) => r.found).length;
+        const notFound = pillBadgeCsvPreviewRows.filter((r) => !r.found).length;
+        const already  = pillBadgeCsvPreviewRows.filter((r) => r.alreadyHas).length;
+        const toAssign = pillBadgeCsvPreviewRows.filter((r) => r.found && !r.alreadyHas).length;
+
+        const notFoundList = notFound > 0
+            ? `<details class="badge-csv-details"><summary>Ver correos no encontrados (${notFound})</summary>
+               <ul class="badge-csv-notfound-list">${pillBadgeCsvPreviewRows.filter((r) => !r.found).map((r) => `<li>${escapeHtml(r.email)}</li>`).join('')}</ul></details>`
+            : '';
+
+        previewEl.innerHTML = `
+            <div class="badge-csv-summary">
+                <span class="badge-csv-stat badge-csv-stat--ok"><i class="fas fa-check-circle"></i> ${found} encontrado${found !== 1 ? 's' : ''}</span>
+                ${notFound  > 0 ? `<span class="badge-csv-stat badge-csv-stat--warn"><i class="fas fa-exclamation-circle"></i> ${notFound} no encontrado${notFound !== 1 ? 's' : ''}</span>` : ''}
+                ${already   > 0 ? `<span class="badge-csv-stat badge-csv-stat--info"><i class="fas fa-medal"></i> ${already} ya tiene${already !== 1 ? 'n' : ''} el sello</span>` : ''}
+                <span class="badge-csv-stat badge-csv-stat--assign"><i class="fas fa-plus-circle"></i> <strong>Nuevos a asignar: ${toAssign}</strong></span>
+            </div>
+            ${notFoundList}`;
+
+        importBtn.disabled = toAssign === 0;
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+window.importPillBadgeCsv = async function () {
+    if (!currentBadgePillId || pillBadgeCsvPreviewRows.length === 0) return;
+    const toAdd = pillBadgeCsvPreviewRows.filter((r) => r.found && !r.alreadyHas);
+    if (toAdd.length === 0) { showToast('No hay nuevos sellos para asignar.', 'info'); return; }
+
+    const btn = document.getElementById('btn-import-badge-csv');
+    const originalHTML = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i>'; btn.disabled = true; }
+
+    showToast('Importando sellos…', 'info', 2000);
+    try {
+        const addIds = toAdd.map((r) => r.userId).filter(Boolean);
+        const rows = addIds.map((userId) => ({
+            pill_id: currentBadgePillId,
+            user_id: userId,
+            score: null,
+            errors: null
+        }));
+        const { error: upsertError } = await supabase
+            .from('user_pill_badges')
+            .upsert(rows, { onConflict: 'user_id,pill_id' });
+        if (upsertError) throw upsertError;
+        const added = addIds.length;
+
+        localBadgeHolderIds = await _fetchBadgeHolders(currentBadgePillId);
+        _renderBadgeManualList();
+
+        pillBadgeCsvPreviewRows = [];
+        pillBadgeCsvFile = null;
+        const csvFileEl = document.getElementById('badge-csv-file');
+        if (csvFileEl) csvFileEl.value = '';
+        const filenameEl = document.getElementById('badge-csv-filename');
+        if (filenameEl) filenameEl.textContent = 'Sin archivo';
+        const previewEl = document.getElementById('badge-csv-preview');
+        if (previewEl) { previewEl.classList.add('hidden'); previewEl.innerHTML = ''; }
+        if (btn) btn.disabled = true;
+
+        showToast(
+            `Importación lista: ${added} sello${added !== 1 ? 's' : ''} asignado${added !== 1 ? 's' : ''}.`,
+            'success',
+            6000
+        );
+        window.switchPillBadgeTab('manual');
+    } catch (e) {
+        const msg = e?.message || String(e);
+        showToast(`Error al importar: ${msg}`, 'error', 10000);
+        console.error(e);
+    } finally {
+        if (btn) { btn.innerHTML = originalHTML; btn.disabled = false; }
+    }
+};
+
+window.deletePill = function (pillId) {
+    window.openDestructiveConfirmModal({
+        title: '¿Eliminar pill?',
+        body: 'Se eliminará esta pill y todas sus preguntas V/F. Esta acción no se puede deshacer.',
+        onConfirm: async () => {
+            try {
+                const qSnap = await getDocs(collection(db, PILLS_COLLECTION, pillId, 'questions'));
+                const deletePromises = [];
+                // El shim de getDocs no devuelve ref tipo Firestore (sin `segments`); usar doc() explícito.
+                qSnap.forEach((d) => deletePromises.push(
+                    deleteDoc(doc(db, PILLS_COLLECTION, pillId, 'questions', d.id))
+                ));
+                await Promise.all(deletePromises);
+                // Limpiar FK en ranking_user y user_pill_badges antes de borrar la pill.
+                await supabase.from('ranking_user').update({ pills_rank_pill_id: null }).eq('pills_rank_pill_id', pillId);
+                await supabase.from('user_pill_badges').delete().eq('pill_id', pillId);
+                await deleteDoc(doc(db, PILLS_COLLECTION, pillId));
+                loadPills();
+            } catch (e) {
+                throw new Error(e?.message ? `Error al eliminar: ${e.message}` : String(e));
+            }
+        }
+    });
 };
 
 // --- Pill Questions (V/F) ---
@@ -4376,14 +4841,19 @@ window.savePillQuestion = async function () {
     }
 };
 
-window.deletePillQuestion = async function (qId) {
-    if (!confirm('¿Eliminar esta pregunta? Esta acción no se puede deshacer.')) return;
-    try {
-        await deleteDoc(doc(db, PILLS_COLLECTION, currentPillId, 'questions', qId));
-        loadPillQuestions();
-    } catch (e) {
-        alert('Error: ' + e.message);
-    }
+window.deletePillQuestion = function (qId) {
+    window.openDestructiveConfirmModal({
+        title: '¿Eliminar pregunta?',
+        body: 'Esta acción no se puede deshacer.',
+        onConfirm: async () => {
+            try {
+                await deleteDoc(doc(db, PILLS_COLLECTION, currentPillId, 'questions', qId));
+                loadPillQuestions();
+            } catch (e) {
+                throw new Error(e?.message || String(e));
+            }
+        }
+    });
 };
 
 // --- Toggle password visibility ---

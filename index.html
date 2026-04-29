@@ -844,6 +844,28 @@
                     <input type="text" id="pill-description" placeholder="Breve descripción de esta pill" class="form-input">
                 </div>
                 <div class="form-group">
+                    <label class="form-label">Quarter <span style="font-size:0.85em;color:var(--text-muted);">(opcional)</span></label>
+                    <select id="pill-quarter" class="form-input form-select">
+                        <option value="">— Sin quarter —</option>
+                        <option value="Q1">Q1</option>
+                        <option value="Q2">Q2</option>
+                        <option value="Q3">Q3</option>
+                        <option value="Q4">Q4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="pill-has-quiz-row">
+                        <div class="pill-has-quiz-info">
+                            <span class="form-label" style="margin-bottom:0">¿Incluye prueba V/F?</span>
+                            <span class="pill-has-quiz-hint">Si está activo, el sello se puede ganar respondiendo preguntas. Si está desactivado, el sello solo se asigna manualmente desde el admin.</span>
+                        </div>
+                        <label class="toggle-switch" for="pill-has-quiz" aria-label="Incluye prueba V/F">
+                            <input type="checkbox" id="pill-has-quiz" checked>
+                            <span class="toggle-track"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label class="form-label">Sello en disputa</label>
                     <div class="pill-seal-uploader">
                         <input type="file" id="pill-seal-file" accept="image/png,image/webp,image/jpeg,image/gif"
@@ -903,6 +925,82 @@
                 <button onclick="window.closeDeleteUsersModal && window.closeDeleteUsersModal()" class="btn-cancel">Cancelar</button>
                 <button onclick="window.confirmDeleteSelectedUsers && window.confirmDeleteSelectedUsers()" id="btn-confirm-delete-users"
                     class="btn-delete-confirm">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Confirmación genérica (acciones destructivas) ===================== -->
+    <div id="modal-destructive-confirmation" class="modal-overlay hidden">
+        <div class="modal-box modal-box--sm animate-fade-in">
+            <div class="delete-icon-wrapper">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 id="destructive-confirm-title" class="delete-modal-title">¿Confirmar?</h3>
+            <p id="destructive-confirm-body" class="delete-modal-body">Esta acción no se puede deshacer.</p>
+            <div class="modal-actions">
+                <button type="button" onclick="window.closeDestructiveConfirmModal && window.closeDestructiveConfirmModal()"
+                    class="btn-cancel">Cancelar</button>
+                <button type="button" onclick="window.confirmDestructiveAction && window.confirmDestructiveAction()"
+                    id="btn-confirm-destructive" class="btn-delete-confirm">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: Asignar Ganadores de Sello ===================== -->
+    <div id="modal-pill-badge-assignment" class="modal-overlay hidden">
+        <div class="modal-box modal-box--lg modal-box--scrollable animate-fade-in" style="max-width:38rem;">
+            <button type="button" class="modal-close-x" onclick="window.closePillBadgeAssignmentModal && window.closePillBadgeAssignmentModal()" aria-label="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="modal-title"><i class="fas fa-medal" style="color:var(--accent-primary);margin-right:.4rem"></i> Ganadores del sello</h3>
+            <p id="badge-assign-pill-name" class="badge-assign-subtitle">—</p>
+            <p id="badge-holder-count" class="badge-holder-count">Ningún usuario tiene este sello aún</p>
+
+            <!-- Tabs -->
+            <div class="badge-tabs" role="tablist">
+                <button type="button" class="badge-tab-btn active" data-tab="manual"
+                    onclick="window.switchPillBadgeTab && window.switchPillBadgeTab('manual')" role="tab" aria-selected="true">
+                    <i class="fas fa-users"></i> Manual
+                </button>
+                <button type="button" class="badge-tab-btn" data-tab="csv"
+                    onclick="window.switchPillBadgeTab && window.switchPillBadgeTab('csv')" role="tab" aria-selected="false">
+                    <i class="fas fa-file-csv"></i> Importar CSV
+                </button>
+            </div>
+
+            <!-- Tab: Manual -->
+            <div id="badge-tab-manual">
+                <div class="badge-search-wrap">
+                    <input type="search" id="badge-manual-search" class="form-input form-input--sm"
+                        placeholder="Buscar por nombre o correo…"
+                        oninput="window.pillBadgeFilterUsers && window.pillBadgeFilterUsers(this.value)">
+                </div>
+                <div id="badge-user-list" class="badge-user-list">
+                    <!-- populated by JS -->
+                </div>
+                <div class="modal-actions" style="margin-top:1rem">
+                    <button type="button" onclick="window.closePillBadgeAssignmentModal && window.closePillBadgeAssignmentModal()" class="btn-cancel">Cancelar</button>
+                    <button type="button" id="btn-save-badge-manual" onclick="window.savePillBadgeManual && window.savePillBadgeManual()" class="btn-modal-save">Guardar cambios</button>
+                </div>
+            </div>
+
+            <!-- Tab: CSV -->
+            <div id="badge-tab-csv" class="hidden">
+                <p class="badge-csv-instructions">Sube un CSV con una columna <code>email</code> (una dirección por fila). Los usuarios que ya tienen el sello se omiten automáticamente.</p>
+                <div class="pill-seal-uploader-actions" style="margin-bottom:.75rem">
+                    <label for="badge-csv-file" class="pill-seal-upload-btn">
+                        <i class="fas fa-upload"></i> Seleccionar CSV
+                    </label>
+                    <span id="badge-csv-filename" class="pill-seal-file-name">Sin archivo</span>
+                </div>
+                <input type="file" id="badge-csv-file" accept=".csv,text/csv"
+                    class="pill-seal-file-input"
+                    onchange="window.handleBadgeCsvChange && window.handleBadgeCsvChange(event)">
+                <div id="badge-csv-preview" class="badge-csv-preview hidden"></div>
+                <div class="modal-actions" style="margin-top:1rem">
+                    <button type="button" onclick="window.closePillBadgeAssignmentModal && window.closePillBadgeAssignmentModal()" class="btn-cancel">Cancelar</button>
+                    <button type="button" id="btn-import-badge-csv" onclick="window.importPillBadgeCsv && window.importPillBadgeCsv()" class="btn-modal-save" disabled>Importar sellos</button>
+                </div>
             </div>
         </div>
     </div>

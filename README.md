@@ -35,7 +35,8 @@ admin-version/
 │       ├── admin-list-uixers/
 │       ├── admin-list-skills-catalog/
 │       ├── admin-upsert-user-skills/
-│       └── admin-upsert-user-skills-csv/
+│       ├── admin-upsert-user-skills-csv/
+│       └── admin-pill-badges/   # Asignar sellos (bypass RLS, solo admin)
 ├── sql/                    # Scripts SQL de soporte
 └── templates/              # Plantillas CSV descargables
 ```
@@ -79,4 +80,5 @@ supabase functions deploy admin-list-uixers --no-verify-jwt
 supabase functions deploy admin-list-skills-catalog --no-verify-jwt
 supabase functions deploy admin-upsert-user-skills --no-verify-jwt
 supabase functions deploy admin-upsert-user-skills-csv --no-verify-jwt
+supabase functions deploy admin-pill-badges --no-verify-jwt
 ```

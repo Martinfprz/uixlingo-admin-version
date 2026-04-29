@@ -2476,9 +2476,16 @@ textarea {
 
 .pill-card-header {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     gap: 0.75rem;
+}
+
+.pill-card-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
 }
 
 .pill-card-seal-thumb {
@@ -2518,25 +2525,28 @@ textarea {
 
 .pill-card-buttons {
     display: flex;
-    gap: 0.6rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-top: 0.5rem;
 }
 
 .pill-btn {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    padding: 0.55rem 0.75rem;
+    padding: 0.5rem 0.7rem;
     border-radius: 0.75rem;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
     text-decoration: none;
     transition: all 0.2s;
     border: 1px solid transparent;
     font-family: inherit;
+    white-space: nowrap;
 }
 
 .pill-btn--link {
@@ -2561,8 +2571,242 @@ textarea {
     border-color: rgba(80, 200, 120, 0.5);
 }
 
-.pill-btn--disabled {
+.pill-btn--assign-badge {
+    color: #f5c842;
+    background: rgba(245, 200, 66, 0.1);
+    border-color: rgba(245, 200, 66, 0.3);
+}
+
+.pill-btn--assign-badge:hover {
+    background: rgba(245, 200, 66, 0.2);
+    border-color: rgba(245, 200, 66, 0.5);
+}
+
+/* Pill type tag (quiz / solo sello) */
+.pill-type-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+    letter-spacing: 0.01em;
+}
+
+.pill-type-tag--quiz {
+    color: #a8f5c0;
+    background: rgba(80, 200, 120, 0.1);
+    border: 1px solid rgba(80, 200, 120, 0.25);
+}
+
+.pill-type-tag--badge {
+    color: #f5c842;
+    background: rgba(245, 200, 66, 0.1);
+    border: 1px solid rgba(245, 200, 66, 0.25);
+}
+
+.pill-type-tag--quarter {
+    color: #82cfff;
+    background: rgba(100, 180, 255, 0.1);
+    border: 1px solid rgba(100, 180, 255, 0.25);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+}
+
+/* has_quiz toggle row in pill modal */
+.pill-has-quiz-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pill-has-quiz-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
     flex: 1;
+}
+
+.pill-has-quiz-hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Badge assignment modal */
+.badge-assign-subtitle {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: -0.5rem 0 0.25rem;
+}
+
+.badge-holder-count {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+}
+
+.badge-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 1rem;
+}
+
+.badge-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem 1rem;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+
+.badge-tab-btn:hover { color: var(--text-primary); }
+
+.badge-tab-btn.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+
+.badge-search-wrap {
+    margin-bottom: 0.75rem;
+}
+
+.form-input--sm {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.badge-user-list {
+    max-height: 18rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+.badge-user-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 0.65rem;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+    transition: background 0.15s;
+}
+
+.badge-user-row:hover { background: rgba(255, 255, 255, 0.07); }
+
+.badge-user-row--has {
+    border-color: rgba(245, 200, 66, 0.25);
+    background: rgba(245, 200, 66, 0.05);
+}
+
+.badge-user-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.badge-user-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.badge-user-email {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.badge-winner-indicator {
+    color: #f5c842;
+    font-size: 0.9rem;
+}
+
+/* CSV tab */
+.badge-csv-instructions {
+    font-size: 0.83rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.badge-csv-preview {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 0.75rem;
+    font-size: 0.83rem;
+}
+
+.badge-csv-error {
+    color: var(--danger);
+    font-size: 0.83rem;
+}
+
+.badge-csv-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.badge-csv-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.badge-csv-stat--ok   { color: #a8f5c0; background: rgba(80, 200, 120, 0.12); }
+.badge-csv-stat--warn { color: #ffc966; background: rgba(255, 165, 0, 0.12); }
+.badge-csv-stat--info { color: #f5c842; background: rgba(245, 200, 66, 0.1); }
+.badge-csv-stat--assign { color: var(--accent-primary); background: rgba(140, 89, 254, 0.1); }
+
+.badge-csv-details {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.badge-csv-details summary { cursor: pointer; }
+
+.badge-csv-notfound-list {
+    margin: 0.35rem 0 0 1rem;
+    padding: 0;
+    list-style: disc;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.pill-btn--disabled {
+    flex: 0 1 auto;
+    width: fit-content;
+    max-width: 100%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3015,6 +3259,64 @@ textarea {
     background: rgba(13, 11, 30, 0.04);
     border-color: rgba(13, 11, 30, 0.08);
 }
+
+[data-theme="light"] .pill-btn--assign-badge {
+    color: #8a5e00;
+    background: rgba(200, 160, 0, 0.1);
+    border-color: rgba(200, 160, 0, 0.3);
+}
+
+[data-theme="light"] .pill-btn--assign-badge:hover {
+    background: rgba(200, 160, 0, 0.18);
+}
+
+[data-theme="light"] .pill-type-tag--quiz {
+    color: #1a7a3a;
+    background: rgba(26, 122, 58, 0.08);
+    border-color: rgba(26, 122, 58, 0.2);
+}
+
+[data-theme="light"] .pill-type-tag--badge {
+    color: #7a5200;
+    background: rgba(200, 140, 0, 0.08);
+    border-color: rgba(200, 140, 0, 0.2);
+}
+
+[data-theme="light"] .pill-type-tag--quarter {
+    color: #0055aa;
+    background: rgba(0, 100, 200, 0.07);
+    border-color: rgba(0, 100, 200, 0.2);
+}
+
+[data-theme="light"] .pill-has-quiz-row {
+    background: rgba(13, 11, 30, 0.04);
+    border-color: rgba(13, 11, 30, 0.1);
+}
+
+[data-theme="light"] .badge-user-row {
+    background: rgba(13, 11, 30, 0.03);
+    border-color: rgba(13, 11, 30, 0.08);
+}
+
+[data-theme="light"] .badge-user-row:hover { background: rgba(13, 11, 30, 0.07); }
+
+[data-theme="light"] .badge-user-row--has {
+    background: rgba(200, 140, 0, 0.06);
+    border-color: rgba(200, 140, 0, 0.2);
+}
+
+[data-theme="light"] .badge-csv-preview {
+    background: rgba(13, 11, 30, 0.03);
+    border-color: rgba(13, 11, 30, 0.1);
+}
+
+[data-theme="light"] .badge-tabs {
+    border-color: rgba(13, 11, 30, 0.1);
+}
+
+[data-theme="light"] .badge-csv-stat--ok   { color: #1a7a3a; background: rgba(26, 122, 58, 0.08); }
+[data-theme="light"] .badge-csv-stat--warn { color: #7a4500; background: rgba(200, 120, 0, 0.08); }
+[data-theme="light"] .badge-csv-stat--info { color: #7a5200; background: rgba(200, 140, 0, 0.08); }
 
 [data-theme="light"] .pill-seal-uploader {
     border-color: rgba(13, 11, 30, 0.18);
